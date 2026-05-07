@@ -1153,6 +1153,8 @@ table.tb tr:hover{background:#fafaf8;}
 
       <button class="admin-nav-btn" data-sec="visitas">📈 Visitas</button>
 
+      <button class="admin-nav-btn" data-sec="historias">💬 Historias</button>
+
       <button class="admin-nav-btn" data-sec="config">⚙️ Config</button>
 
       <button class="admin-nav-btn" data-sec="bancos">🏦 Bancos</button>
@@ -1273,7 +1275,20 @@ table.tb tr:hover{background:#fafaf8;}
 
       <h3>📊 Estado de Capacidad</h3>
 
-      <div id="capacidadAdmin"></div>
+      <div id="capacidadAdmin" style="margin-bottom:18px;"></div>
+
+      <div style="background:#f0f7ea;border:1.5px solid var(--va);border-radius:14px;padding:20px 24px;">
+        <h4 style="font-family:'Cinzel',serif;font-size:13px;color:var(--vd);margin-bottom:14px;letter-spacing:1px;">✏️ MODIFICAR CAPACIDAD TOTAL</h4>
+        <p style="font-size:13px;color:#666;margin-bottom:14px;">Cambia el total de plantas disponibles. Las ya asignadas no se verán afectadas.</p>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div class="fg" style="margin:0;flex:1;min-width:180px;">
+            <label>Nueva capacidad total de plantas</label>
+            <input type="number" id="inputCapPlantas" min="1" max="9999" style="font-size:16px;font-weight:600;" placeholder="260">
+          </div>
+          <button class="btn" style="height:46px;margin-top:20px;" onclick="guardarCapacidadPlantas()">💾 Guardar capacidad</button>
+        </div>
+        <div id="msgCapPlantas" style="display:none;margin-top:12px;"></div>
+      </div>
 
     </div>
 
@@ -1285,6 +1300,12 @@ table.tb tr:hover{background:#fafaf8;}
 
       <div id="graficoVisitas"></div>
 
+    </div>
+
+    <!-- Historias -->
+    <div class="admin-section" id="adHistorias">
+      <h3>💬 Historias / Testimonios</h3>
+      <div id="listaHistoriasAdmin" style="margin-top:12px;"></div>
     </div>
 
     <!-- Config -->
@@ -1705,13 +1726,38 @@ function validarDiaSemana(){
 
 // ═══════════════════════════════════════════
 
-function capInfo(){ const o=Object.values(DB.plantas).filter(p=>p.clienteEmail).length; return {total:260,ocupadas:o,disponibles:260-o}; }
+function capInfo(){ const o=Object.values(DB.plantas).filter(p=>p.clienteEmail).length; const t=CFG.capPlantas||260; return {total:t,ocupadas:o,disponibles:Math.max(0,t-o)}; }
+
+function guardarCapacidadPlantas(){
+  const input = document.getElementById('inputCapPlantas');
+  const msg = document.getElementById('msgCapPlantas');
+  if(!input) return;
+  const val = parseInt(input.value);
+  const ocupadas = capInfo().ocupadas;
+  if(isNaN(val) || val < 1){
+    if(msg){ msg.textContent='⚠️ Ingresa un número válido mayor a 0.'; msg.style.cssText='display:block;padding:10px 14px;background:#fff3cd;border-left:4px solid #f39c12;border-radius:8px;color:#856404;font-size:14px;'; clearTimeout(msg._t); msg._t=setTimeout(()=>{msg.style.display='none';},3500); }
+    return;
+  }
+  if(val < ocupadas){
+    if(msg){ msg.textContent='⛔ No puedes reducir la capacidad por debajo de las plantas ya asignadas ('+ocupadas+').'; msg.style.cssText='display:block;padding:10px 14px;background:#f8d7da;border-left:4px solid #c0392b;border-radius:8px;color:#721c24;font-size:14px;'; clearTimeout(msg._t); msg._t=setTimeout(()=>{msg.style.display='none';},5000); }
+    return;
+  }
+  CFG.capPlantas = val;
+  guardar();
+  renderCap();
+  renderTours();
+  actualizarHorarios();
+  const capInfoEl = document.getElementById('capInfo');
+  if(capInfoEl){ const c=capInfo(); capInfoEl.innerHTML='<div class="cap-badge '+(c.disponibles===0?'lleno':'')+'">🌱 '+c.ocupadas+'/'+c.total+' · '+c.disponibles+' disponibles</div>'; }
+  if(msg){ msg.textContent='✅ Capacidad actualizada a '+val+' plantas. Disponibles: '+(val-ocupadas)+'.'; msg.style.cssText='display:block;padding:10px 14px;background:#d4edda;border-left:4px solid #27ae60;border-radius:8px;color:#155724;font-size:14px;font-weight:600;'; clearTimeout(msg._t); msg._t=setTimeout(()=>{msg.style.display='none';},4000); }
+  input.value = '';
+}
 
 function renderCap(){
 
   const c=capInfo();
 
-  const badge=`<div class="cap-badge ${c.disponibles===0?'lleno':''}">🌱 ${c.ocupadas}/260 · ${c.disponibles} disponibles</div>`;
+  const badge=`<div class="cap-badge ${c.disponibles===0?'lleno':''}">🌱 ${c.ocupadas}/${c.total} · ${c.disponibles} disponibles</div>`;
 
   if(document.getElementById('capInfo')) document.getElementById('capInfo').innerHTML=badge;
 
@@ -2354,10 +2400,12 @@ function mostrarSecAdmin(s){
   if(s==='padrinos') renderPadrinosAdmin();
 
   if(s==='inactivos') renderInactivos();
+  if(s==='capacidad'){ renderCap(); const ic=document.getElementById('inputCapPlantas'); if(ic) ic.placeholder=String(CFG.capPlantas||260); }
 
   if(s==='capacidad') renderCap();
 
   if(s==='visitas') renderVisitas();
+  if(s==='historias') renderHistoriasAdmin();
 
   if(s==='config'){ llenarCamposConfig(); renderTourEditor(); }
 
@@ -2365,7 +2413,7 @@ function mostrarSecAdmin(s){
 
 }
 
-function actualizarAdminTodo(){ renderClientes(); renderPlantasAdmin(); renderReservasAdmin(); renderPadrinosAdmin(); renderInactivos(); renderCap(); renderVisitas(); }
+function actualizarAdminTodo(){ renderClientes(); renderPlantasAdmin(); renderReservasAdmin(); renderPadrinosAdmin(); renderInactivos(); renderCap(); renderVisitas(); renderHistoriasAdmin(); }
 
 // ─── CLIENTES ───
 
@@ -2613,8 +2661,8 @@ Saludos.`);
         <td>
           ${(r.historialHorarios && r.historialHorarios.length)
             ? (() => {
-                const ult = r.historialHorarios[r.historialHorarios.length - 1];
-                return `<span class="badge-yellow" title="Asignado el ${new Date(ult.ts).toLocaleString()}">${ult.horario}</span>`;
+                const prev = r.historialHorarios[r.historialHorarios.length - 1];
+                return `<span class="badge-yellow" title="Anterior: ${new Date(prev.ts).toLocaleString('es-CR')}">${prev.horario}</span>`;
               })()
             : '—'
           }
@@ -2686,11 +2734,19 @@ function poblarSelReservaAdmin(){
     return;
   }
 
-  // Mostrar todas con indicador de estado
-  sel.innerHTML = DB.reservas.map((r, i) => {
-    const estado = r.horario ? `✅ ${r.horario}` : '⏳ Sin hora';
-    return `<option value="${i}">${r.nombre} — ${r.fecha} (${estado})</option>`;
-  }).join('');
+  // Solo mostrar reservas SIN horario asignado (pendientes)
+  const pendientes = DB.reservas
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => !r.horario || r.reasignado);
+
+  if(pendientes.length > 0){
+    sel.innerHTML = pendientes.map(({ r, i }) => {
+      const etiqueta = r.reasignado ? '🔄 Reasignar' : '⏳ Sin hora';
+      return `<option value="${i}">${r.nombre} — ${r.fecha} (${etiqueta})</option>`;
+    }).join('');
+  } else {
+    sel.innerHTML = '<option value="">✅ Todas las reservas tienen horario asignado</option>';
+  }
 
   poblarSelHorarioAdmin();
 }
@@ -2815,20 +2871,19 @@ function asignarHorarioAReserva(){
 
   const r = DB.reservas[idx];
 
-  // El admin puede asignar a cualquier fecha (el bloqueo de fin de semana es solo para clientes)
+  // Validar fin de semana si la config lo requiere (aplica también para el admin)
   const fechaAsignar = (fSel && fSel.value) ? fSel.value : r.fecha;
   if(CFG.soloFinDeSemana && fechaAsignar){
     const dw = new Date(fechaAsignar + 'T00:00:00').getDay();
     if(dw !== 0 && dw !== 6){
-      // Solo advertir, no bloquear
       const fijo = document.getElementById('msgAsignarFijo');
       if(fijo){
-        fijo.textContent = '⚠️ Nota: La fecha no es fin de semana, pero el admin puede asignarla igualmente.';
-        fijo.style.cssText = 'display:block;margin-top:10px;padding:11px 16px;background:#fff3cd;border-left:4px solid #f39c12;border-radius:10px;color:#856404;font-size:14px;font-weight:600;';
+        fijo.textContent = '⛔ No se puede asignar: la finca está configurada solo para sábados y domingos. Cambia la fecha o modifica la configuración.';
+        fijo.style.cssText = 'display:block;margin-top:10px;padding:11px 16px;background:#f8d7da;border-left:4px solid #c0392b;border-radius:10px;color:#721c24;font-size:14px;font-weight:600;';
         clearTimeout(fijo._t);
-        fijo._t = setTimeout(()=>{ fijo.style.display='none'; }, 4000);
+        fijo._t = setTimeout(()=>{ fijo.style.display='none'; }, 5000);
       }
-      // NO hace return — deja continuar
+      return; // Bloquear — no guardar
     }
   }
 
@@ -2845,7 +2900,7 @@ function asignarHorarioAReserva(){
   }
 
   r.horario = hora;
-  r.reasignado = (r.historialHorarios.length > 0);
+  r.reasignado = false; // limpiar siempre al asignar — ya tiene horario
   r.horarioAnterior = r.historialHorarios.length > 0 ? r.historialHorarios[r.historialHorarios.length - 1].horario : null;
   if(fSel) fSel.value = '';
 
@@ -2954,6 +3009,28 @@ function renderPadrinosAdmin(){
 }
 
 // ─── INACTIVOS ───
+
+function renderHistoriasAdmin(){
+  const cont = document.getElementById('listaHistoriasAdmin');
+  if(!cont) return;
+  const testimonios = JSON.parse(localStorage.getItem('fec_testimonios') || '[]');
+  if(!testimonios.length){
+    cont.innerHTML = '<p style="color:#999;text-align:center;padding:30px;">No hay historias publicadas aún.</p>';
+    return;
+  }
+  cont.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--vd);color:#fff;"><th style="padding:10px 12px;text-align:left;">#</th><th style="padding:10px 12px;text-align:left;">Autor</th><th style="padding:10px 12px;text-align:left;">Historia</th><th style="padding:10px 12px;text-align:left;">Fecha</th><th style="padding:10px 12px;text-align:left;">Acción</th></tr></thead><tbody>' +
+    testimonios.map((t,i) => '<tr style="border-bottom:1px solid #e0e0e0;background:'+(i%2===0?'#fff':'#f9f9f9')+'"><td style="padding:10px 12px;">'+(i+1)+'</td><td style="padding:10px 12px;font-weight:600;color:var(--vd);">'+t.autor+'</td><td style="padding:10px 12px;color:#333;max-width:320px;">'+t.texto+'</td><td style="padding:10px 12px;color:#777;">'+new Date(t.fecha).toLocaleDateString('es-CR')+'</td><td style="padding:10px 12px;"><button onclick="eliminarHistoria('+i+')" style="background:#c0392b;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;">🗑 Eliminar</button></td></tr>').join('') +
+    '</tbody></table>';
+}
+
+function eliminarHistoria(i){
+  // Actualizar variable en memoria Y localStorage para que la página pública se refresque
+  DB_testimonios.splice(i, 1);
+  localStorage.setItem('fec_testimonios', JSON.stringify(DB_testimonios));
+  renderTestimonios();       // actualiza sección pública
+  renderHistoriasAdmin();    // actualiza tabla del admin
+  showMsg('msgAsignarFijo', '🗑 Historia eliminada correctamente', 'err', 3000);
+}
 
 function renderInactivos(){
 
@@ -3291,6 +3368,10 @@ function exportarExcel(){
   if(visitas.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(visitas), 'Visitas');
 
   if(wb.SheetNames.length===0){ return; }
+  const historias = JSON.parse(localStorage.getItem('fec_testimonios') || '[]')
+    .map(t => ({ Autor: t.autor, Historia: t.texto, Fecha: new Date(t.fecha).toLocaleDateString('es-CR'), Anonimo: t.anon ? 'Sí' : 'No' }));
+  if(historias.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(historias), 'Historias');
+
   XLSX.writeFile(wb, `finca_el_curio_${fecha}.xlsx`);
   // Descarga automática sin alert
 }
