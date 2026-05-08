@@ -3541,18 +3541,18 @@ document.addEventListener('DOMContentLoaded',init);
     const btn = document.getElementById('btnReservar');
     const msg = document.getElementById('msgReserva');
 
-    // Capturamos los datos usando los IDs que ya tienes (rNombre, rEmail, etc.)
+    // 1. Capturamos los datos con los nombres EXACTOS de tu tabla en Supabase
     const datosParaEnviar = {
-      nombre: document.getElementById('rNombre').value,
-      email: document.getElementById('rEmail').value,
-      telefono: document.getElementById('rTel').value,
-      fecha: document.getElementById('rFecha').value,
-      tour: document.getElementById('rTour').value
+      "nombre": document.getElementById('rNombre').value,
+      "correo electrónico": document.getElementById('rEmail').value,
+      "teléfono": document.getElementById('rTel').value,
+      "fecha": document.getElementById('rFecha').value,
+      "recorrido": document.getElementById('rTour').value
     };
 
-    // Validación: No enviar si el nombre está vacío
-    if (!datosParaEnviar.nombre) {
-      alert("Por favor, ingresa tu nombre.");
+    // Validación básica para no enviar vacíos
+    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
+      alert("Por favor, completa al menos el nombre y el correo.");
       return;
     }
 
@@ -3560,24 +3560,32 @@ document.addEventListener('DOMContentLoaded',init);
     btn.disabled = true;
     btn.innerText = "Enviando...";
 
-    // 3. Enviamos a Supabase
-    const { error } = await _supabase
-      .from('reservas')
-      .insert([datosParaEnviar]);
+    // 2. Enviamos a Supabase
+    try {
+        const { error } = await _supabase
+          .from('reservas')
+          .insert([datosParaEnviar]);
 
-    if (error) {
-      alert("Error al guardar: " + error.message);
-      btn.disabled = false;
-      btn.innerText = "✅ Confirmar Reserva";
-    } else {
-      alert("¡Reserva enviada con éxito a Finca El Curio!");
-      // Limpiamos el formulario
-      document.getElementById('rNombre').value = "";
-      document.getElementById('rEmail').value = "";
-      btn.disabled = false;
-      btn.innerText = "✅ Confirmar Reserva";
+        if (error) throw error;
+
+        // Si sale bien
+        alert("¡Reserva enviada con éxito a Finca El Curio!");
+        
+        // Limpiamos los campos para una nueva reserva
+        document.getElementById('rNombre').value = "";
+        document.getElementById('rEmail').value = "";
+        document.getElementById('rTel').value = "";
+        
+    } catch (error) {
+        // Si hay un error de conexión o de nombres
+        console.error("Error detallado:", error);
+        alert("Error al guardar: " + error.message);
+    } finally {
+        // El botón vuelve a la normalidad pase lo que pase
+        btn.disabled = false;
+        btn.innerText = "✅ Confirmar Reserva";
     }
-  }
+}
 </script>
 </body>
 
