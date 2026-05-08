@@ -3527,59 +3527,53 @@ function init(){
 
 document.addEventListener('DOMContentLoaded',init);
 
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+  // 1. La conexión (Asegúrate de cambiar TU_LLAVE_ANON_AQUÍ por la real)
+  const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+  const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
+  const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+  // 2. Esta función es la que "atrapa" los datos del formulario
   async function procesarReserva() {
     const btn = document.getElementById('btnReservar');
-    
-    // 1. Captura de los datos desde tu formulario actual
-    const nombre = document.getElementById('rNombre').value;
-    const email = document.getElementById('rEmail').value;
-    const telefono = document.getElementById('rTel').value;
-    const fecha = document.getElementById('rFecha').value;
-    const tour = document.getElementById('rTour').value;
+    const msg = document.getElementById('msgReserva');
 
-    // 2. Validación: Asegurarse de que al menos el nombre y correo existan
-    if (!nombre || !email) {
-      alert("Por favor, ingresa tu nombre y correo electrónico para contactarte.");
+    // Capturamos los datos usando los IDs que ya tienes (rNombre, rEmail, etc.)
+    const datosParaEnviar = {
+      nombre: document.getElementById('rNombre').value,
+      email: document.getElementById('rEmail').value,
+      telefono: document.getElementById('rTel').value,
+      fecha: document.getElementById('rFecha').value,
+      tour: document.getElementById('rTour').value
+    };
+
+    // Validación: No enviar si el nombre está vacío
+    if (!datosParaEnviar.nombre) {
+      alert("Por favor, ingresa tu nombre.");
       return;
     }
 
-    // 3. Efecto visual en el botón
+    // Desactivar botón mientras envía
     btn.disabled = true;
-    btn.innerText = "Enviando a la Finca...";
+    btn.innerText = "Enviando...";
 
-    // 4. Configuración del envío a tu Apps Script
-    const url = "https://script.google.com/macros/s/AKfycbyPuv9TimaqQmWizNord8bcrof0PbDLDbINWHHtsZgeLD3wLyQvPCqRqkYfpvm1hWiGEQ/exec";
-    
-    // Preparamos los datos para que el script los entienda
-    const datos = new URLSearchParams();
-    datos.append("nombre", nombre);
-    datos.append("email", email);
-    // Agrupamos los datos de la finca en el campo 'mensaje' para tu Excel
-    datos.append("mensaje", "Teléfono: " + telefono + " | Fecha sugerida: " + fecha + " | Interés: " + tour);
+    // 3. Enviamos a Supabase
+    const { error } = await _supabase
+      .from('reservas')
+      .insert([datosParaEnviar]);
 
-    try {
-      // 5. El envío real
-      await fetch(url, {
-        method: "POST",
-        body: datos,
-        mode: "no-cors" // Esto evita bloqueos de seguridad del navegador
-      });
-
-      // 6. Mensaje de éxito al usuario
-      alert("¡Reserva enviada con éxito! En Finca El Curio estamos felices de recibirte.");
-      
-      // Limpiamos los campos del formulario
+    if (error) {
+      alert("Error al guardar: " + error.message);
+      btn.disabled = false;
+      btn.innerText = "✅ Confirmar Reserva";
+    } else {
+      alert("¡Reserva enviada con éxito a Finca El Curio!");
+      // Limpiamos el formulario
       document.getElementById('rNombre').value = "";
       document.getElementById('rEmail').value = "";
-      document.getElementById('rTel').value = "";
-      if(document.getElementById('rFecha')) document.getElementById('rFecha').value = "";
-
-    } catch (error) {
-      alert("Lo sentimos, hubo un problema al enviar la reserva. Por favor, intenta de nuevo.");
-      console.error("Error en el envío:", error);
-    } finally {
-      // Restauramos el botón
       btn.disabled = false;
       btn.innerText = "✅ Confirmar Reserva";
     }
