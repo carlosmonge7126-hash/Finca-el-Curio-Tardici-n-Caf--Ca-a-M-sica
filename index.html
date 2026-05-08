@@ -3559,47 +3559,42 @@ function init(){
   const btnT = document.getElementById('btnAbrirTestimonio');
   if(btnT) btnT.style.display = 'inline-flex';
 
+ function init() { // <--- Asegúrate de que esta llave esté ahí
   // Nav activo
+  const secs = document.querySelectorAll('section[id],div[id]');
+  const navAs = document.querySelectorAll('nav a');
 
-  const secs=document.querySelectorAll('section[id],div[id]');
-
-  const navAs=document.querySelectorAll('nav a');
-
-  window.addEventListener('scroll',()=>{
-
-    let cur='';
-
-    secs.forEach(s=>{if(window.scrollY>=s.offsetTop-120) cur=s.id;});
-
-    navAs.forEach(a=>{a.style.color=a.getAttribute('href')==='#'+cur?'var(--vc)':'';});
-
+  window.addEventListener('scroll', () => {
+    let cur = '';
+    secs.forEach(s => { if (window.scrollY >= s.offsetTop - 120) cur = s.id; });
+    navAs.forEach(a => { a.style.color = a.getAttribute('href') === '#' + cur ? 'var(--vc)' : ''; });
   });
-
 }
 
-document.addEventListener('DOMContentLoaded',init);
+document.addEventListener('DOMContentLoaded', init);
 
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-  // 1. La conexión (Asegúrate de cambiar TU_LLAVE_ANON_AQUÍ por la real)
-  // IMPORTANTE: Asegúrate de que esta línea esté cargada antes
-// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script>
+// 1. CONFIGURACIÓN INICIAL (Fuera de las funciones para evitar el error de inicialización)
 const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-const supabaseKey = 'hmsW5EE7GuaJoNjD'; // <--- PEGA AQUÍ LA CLAVE QUE EMPIEZA CON sb_publisable...
+const supabaseKey = 'hmsW5EE7GuaJoNjD'; // <--- PEGA AQUÍ TU CLAVE COMPLETA
+
+// Creamos la conexión global
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+// 2. FUNCIÓN DE PROCESAMIENTO
 async function procesarReserva(event) {
-    // Evita que la página se refresque
+    // Detenemos el refresco de la página (Soluciona el error de "channel closed")
     if (event) event.preventDefault();
 
     const btn = document.getElementById('btnReservar');
     const msg = document.getElementById('msgReserva');
 
-    // Captura de datos
-    const datos = {
+    // Capturamos los datos con los nombres exactos de tu tabla en Supabase
+    const datosParaEnviar = {
         "nombre": document.getElementById('rNombre').value,
         "correo electrónico": document.getElementById('rEmail').value,
         "teléfono": document.getElementById('rTel').value,
@@ -3607,35 +3602,43 @@ async function procesarReserva(event) {
         "recorrido": document.getElementById('rTour').value
     };
 
-    if (!datos.nombre || !datos["correo electrónico"]) {
-        alert("Por favor completa nombre y correo.");
+    // Validación simple
+    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
+        alert("Por favor, completa nombre y correo.");
         return;
     }
 
+    // Estado visual de carga
     btn.disabled = true;
     btn.innerText = "Guardando...";
 
     try {
+        // Enviar a la tabla 'reservas'
         const { error } = await _supabase
             .from('reservas')
-            .insert([datos]);
+            .insert([datosParaEnviar]);
 
         if (error) throw error;
 
-        alert("¡Éxito! Reserva guardada.");
-        msg.innerText = "✅ ¡Enviado con éxito!";
-        msg.style.color = "#4CAF50";
-
-        // Limpiar
+        // Éxito
+        alert("¡Éxito! Tu reserva ha sido registrada en Supabase.");
+        if(msg) {
+            msg.innerText = "✅ Reserva enviada correctamente.";
+            msg.style.color = "#4CAF50";
+        }
+        
+        // Limpiar campos
         document.getElementById('rNombre').value = "";
         document.getElementById('rEmail').value = "";
         document.getElementById('rTel').value = "";
 
     } catch (err) {
-        console.error("Error detallado:", err);
-        alert("Error: " + err.message);
-        msg.innerText = "❌ Error al enviar.";
-        msg.style.color = "red";
+        console.error("Error capturado:", err);
+        alert("Error al guardar: " + err.message);
+        if(msg) {
+            msg.innerText = "❌ Hubo un error.";
+            msg.style.color = "red";
+        }
     } finally {
         btn.disabled = false;
         btn.innerText = "✅ Confirmar Reserva";
