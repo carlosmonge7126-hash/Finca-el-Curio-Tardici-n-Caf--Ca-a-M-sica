@@ -675,60 +675,113 @@ table.tb tr:hover{background:#fafaf8;}
 
 </section>
 
-<!-- ════════════ RESERVAS ════════════ -->
-
 <div class="bg-dark" id="reservas">
-
   <div class="section">
-
     <div class="section-title dark-title">
-
       <span class="eyebrow" data-es="Agenda tu visita" data-en="Schedule your visit">Agenda tu visita</span>
-
       <h2 data-es="Reserva tu Espacio" data-en="Reserve Your Spot">Reserva tu Espacio</h2>
-
     </div>
 
     <div class="form-wrap">
-
       <div class="form-row">
-
-        <div class="fg"><label data-es="Nombre completo" data-en="Full name">Nombre completo</label><input type="text" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo"></div>
-
-        <div class="fg"><label data-es="Correo electrónico" data-en="Email">Correo electrónico</label><input type="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com"></div>
-
+        <div class="fg">
+          <label data-es="Nombre completo" data-en="Full name">Nombre completo</label>
+          <input type="text" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo">
+        </div>
+        <div class="fg">
+          <label data-es="Correo electrónico" data-en="Email">Correo electrónico</label>
+          <input type="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com">
+        </div>
       </div>
 
       <div class="form-row">
-
-        <div class="fg"><label data-es="Teléfono" data-en="Phone">Teléfono</label><input type="tel" id="rTel" placeholder="8888-8888"></div>
-
-        <div class="fg"><label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label><input type="date" id="rFecha"></div>
-
+        <div class="fg">
+          <label data-es="Teléfono" data-en="Phone">Teléfono</label>
+          <input type="tel" id="rTel" placeholder="8888-8888">
+        </div>
+        <div class="fg">
+          <label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label>
+          <input type="date" id="rFecha">
+        </div>
       </div>
 
       <div class="form-row">
-
-        <div class="fg"><label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label><select id="rTour"></select></div>
-
+        <div class="fg">
+          <label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label>
+          <select id="rTour">
+            <option value="Tour General" data-es="Tour General" data-en="General Tour">Tour General</option>
+            <option value="Museo Vivo" data-es="Museo Vivo" data-en="Living Museum">Museo Vivo</option>
+            <option value="Cata de Café" data-es="Cata de Café" data-en="Coffee Tasting">Cata de Café</option>
+          </select>
+        </div>
       </div>
 
-      <!-- rHora oculto para que la lógica JS no rompa -->
       <select id="rHora" style="display:none;"></select>
       <div id="infoCupos" style="display:none;"></div>
 
-    <button class="btn btn-full" id="btnReservar" onclick="procesarReserva()" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">
-  ✅ Confirmar Reserva
-</button>
+      <button class="btn btn-full" id="btnReservar" onclick="procesarReserva(event)" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">
+        ✅ Confirmar Reserva
+      </button>
 
-<p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
+      <p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
     </div>
-
   </div>
-
 </div>
 
-<!-- ════════════ PAGOS ════════════ -->
+<script>
+async function procesarReserva(event) {
+    // Evita que la página se recargue y corte la conexión con la API
+    if (event) event.preventDefault();
+
+    const btn = document.getElementById('btnReservar');
+    const msg = document.getElementById('msgReserva');
+
+    // Captura de datos con nombres EXACTOS de tu tabla en Supabase
+    const datosParaEnviar = {
+        "nombre": document.getElementById('rNombre').value,
+        "correo electrónico": document.getElementById('rEmail').value,
+        "teléfono": document.getElementById('rTel').value,
+        "fecha": document.getElementById('rFecha').value,
+        "recorrido": document.getElementById('rTour').value
+    };
+
+    // Validación sencilla
+    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
+        alert("Por favor, completa los campos de nombre y correo.");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Guardando...";
+
+    try {
+        const { error } = await _supabase
+            .from('reservas')
+            .insert([datosParaEnviar]);
+
+        if (error) throw error;
+
+        msg.innerText = "¡Reserva enviada con éxito!";
+        msg.style.color = "#4CAF50";
+        alert("¡Éxito! Tu reserva ha sido registrada en la base de datos.");
+        
+        // Limpiar formulario
+        document.getElementById('rNombre').value = "";
+        document.getElementById('rEmail').value = "";
+        document.getElementById('rTel').value = "";
+        
+    } catch (err) {
+        console.error("Error detallado:", err);
+        alert("No se pudo guardar la reserva: " + err.message);
+        msg.innerText = "Hubo un error al enviar.";
+        msg.style.color = "red";
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "✅ Confirmar Reserva";
+    }
+}
+</script>
+  <!-- ════════════ PAGOS ════════════ -->
 
 <div class="bg-dark-2">
 
@@ -3537,10 +3590,13 @@ document.addEventListener('DOMContentLoaded',init);
   const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
   // 2. Esta función es la que "atrapa" los datos del formulario
-  async function procesarReserva() {
+ async function procesarReserva(event) {
+    // Esto evita que la página se recargue y rompa la conexión
+    if (event) event.preventDefault();
+
     const btn = document.getElementById('btnReservar');
     
-    // 1. Capturamos los datos de tus cuadritos (IDs del HTML)
+    // Capturamos los datos con los nombres EXACTOS de tu tabla
     const datosParaEnviar = {
       "nombre": document.getElementById('rNombre').value,
       "correo electrónico": document.getElementById('rEmail').value,
@@ -3549,34 +3605,28 @@ document.addEventListener('DOMContentLoaded',init);
       "recorrido": document.getElementById('rTour').value
     };
 
-    // Validación simple
-    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
-      alert("Por favor, completa nombre y correo.");
-      return;
-    }
+    console.log("Intentando enviar:", datosParaEnviar); // Para ver el progreso en consola
 
     btn.disabled = true;
-    btn.innerText = "Enviando...";
+    btn.innerText = "Guardando...";
 
     try {
-        // 2. Enviamos a la tabla 'reservas'
         const { error } = await _supabase
           .from('reservas')
           .insert([datosParaEnviar]);
 
         if (error) throw error;
 
-        // 3. ¡Éxito!
-        alert("¡Reserva enviada con éxito a Finca El Curio!");
+        alert("¡Éxito! Reserva guardada en Finca El Curio.");
         
-        // Limpiar el formulario
+        // Limpiamos el formulario
         document.getElementById('rNombre').value = "";
         document.getElementById('rEmail').value = "";
         document.getElementById('rTel').value = "";
         
     } catch (error) {
-        console.error("Error de Supabase:", error);
-        alert("Hubo un error: " + error.message);
+        console.error("Error completo:", error);
+        alert("No se pudo guardar: " + error.message);
     } finally {
         btn.disabled = false;
         btn.innerText = "✅ Confirmar Reserva";
