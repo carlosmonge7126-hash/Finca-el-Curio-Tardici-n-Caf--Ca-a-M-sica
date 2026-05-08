@@ -676,70 +676,59 @@ table.tb tr:hover{background:#fafaf8;}
 </section>
 
 <!-- ════════════ RESERVAS ════════════ -->
+
 <div class="bg-dark" id="reservas">
+
   <div class="section">
+
     <div class="section-title dark-title">
+
       <span class="eyebrow" data-es="Agenda tu visita" data-en="Schedule your visit">Agenda tu visita</span>
+
       <h2 data-es="Reserva tu Espacio" data-en="Reserve Your Spot">Reserva tu Espacio</h2>
+
     </div>
 
     <div class="form-wrap">
-      <!-- 1. AGREGAMOS EL FORM AQUÍ (Cambia TU_ID por el de Formspree) -->
-      <form action="https://formspree.io/f/TU_ID_AQUI" method="POST">
-        
-        <div class="form-row">
-          <div class="fg">
-            <label data-es="Nombre completo" data-en="Full name">Nombre completo</label>
-            <!-- 2. Agregamos name="nombre" -->
-            <input type="text" name="nombre" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo" required>
-          </div>
-          <div class="fg">
-            <label data-es="Correo electrónico" data-en="Email">Correo electrónico</label>
-            <!-- 2. Agregamos name="email" -->
-            <input type="email" name="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com" required>
-          </div>
-        </div>
 
-        <div class="form-row">
-          <div class="fg">
-            <label data-es="Teléfono" data-en="Phone">Teléfono</label>
-            <!-- 2. Agregamos name="telefono" -->
-            <input type="tel" name="telefono" id="rTel" placeholder="8888-8888" required>
-          </div>
-          <div class="fg">
-            <label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label>
-            <!-- 2. Agregamos name="fecha" -->
-            <input type="date" name="fecha" id="rFecha" required>
-          </div>
-        </div>
+      <div class="form-row">
 
-        <div class="form-row">
-          <div class="fg">
-            <label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label>
-            <!-- 2. Agregamos name="tour" -->
-            <select name="tour" id="rTour">
-               <option value="Tradicional">Tour Tradicional</option>
-               <option value="Molienda">Tour de la Molienda</option>
-               <option value="Catacion">Cata de Café</option>
-            </select>
-          </div>
-        </div>
+        <div class="fg"><label data-es="Nombre completo" data-en="Full name">Nombre completo</label><input type="text" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo"></div>
 
-        <!-- Campos ocultos para que el JS no falle -->
-        <select id="rHora" style="display:none;"></select>
-        <div id="infoCupos" style="display:none;"></div>
+        <div class="fg"><label data-es="Correo electrónico" data-en="Email">Correo electrónico</label><input type="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com"></div>
 
-        <!-- 3. El botón ahora es type="submit" -->
-        <button type="submit" class="btn btn-full" id="btnReservar" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">
-          ✅ Confirmar Reserva
-        </button>
+      </div>
 
-        <p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
-      </form>
+      <div class="form-row">
+
+        <div class="fg"><label data-es="Teléfono" data-en="Phone">Teléfono</label><input type="tel" id="rTel" placeholder="8888-8888"></div>
+
+        <div class="fg"><label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label><input type="date" id="rFecha"></div>
+
+      </div>
+
+      <div class="form-row">
+
+        <div class="fg"><label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label><select id="rTour"></select></div>
+
+      </div>
+
+      <!-- rHora oculto para que la lógica JS no rompa -->
+      <select id="rHora" style="display:none;"></select>
+      <div id="infoCupos" style="display:none;"></div>
+
+    <button class="btn btn-full" id="btnReservar" onclick="procesarReserva()" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">
+  ✅ Confirmar Reserva
+</button>
+
+<p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
     </div>
+
   </div>
-</div> 
-  <!-- ════════════ PAGOS ════════════ -->
+
+</div>
+
+<!-- ════════════ PAGOS ════════════ -->
 
 <div class="bg-dark-2">
 
@@ -3539,7 +3528,57 @@ function init(){
 document.addEventListener('DOMContentLoaded',init);
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script>
+  // 1. La conexión (Asegúrate de cambiar TU_LLAVE_ANON_AQUÍ por la real)
+  const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+  const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
+  const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+  // 2. Esta función es la que "atrapa" los datos del formulario
+  async function procesarReserva() {
+    const btn = document.getElementById('btnReservar');
+    const msg = document.getElementById('msgReserva');
+
+    // Capturamos los datos usando los IDs que ya tienes (rNombre, rEmail, etc.)
+    const datosParaEnviar = {
+      nombre: document.getElementById('rNombre').value,
+      email: document.getElementById('rEmail').value,
+      telefono: document.getElementById('rTel').value,
+      fecha: document.getElementById('rFecha').value,
+      tour: document.getElementById('rTour').value
+    };
+
+    // Validación: No enviar si el nombre está vacío
+    if (!datosParaEnviar.nombre) {
+      alert("Por favor, ingresa tu nombre.");
+      return;
+    }
+
+    // Desactivar botón mientras envía
+    btn.disabled = true;
+    btn.innerText = "Enviando...";
+
+    // 3. Enviamos a Supabase
+    const { error } = await _supabase
+      .from('reservas')
+      .insert([datosParaEnviar]);
+
+    if (error) {
+      alert("Error al guardar: " + error.message);
+      btn.disabled = false;
+      btn.innerText = "✅ Confirmar Reserva";
+    } else {
+      alert("¡Reserva enviada con éxito a Finca El Curio!");
+      // Limpiamos el formulario
+      document.getElementById('rNombre').value = "";
+      document.getElementById('rEmail').value = "";
+      btn.disabled = false;
+      btn.innerText = "✅ Confirmar Reserva";
+    }
+  }
+</script>
 </body>
 
 </html>
