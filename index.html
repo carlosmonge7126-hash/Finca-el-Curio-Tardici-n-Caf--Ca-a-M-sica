@@ -725,20 +725,23 @@ table.tb tr:hover{background:#fafaf8;}
   </div>
 </div>
   <script>
-// Asegúrate de usar la URL y la Key de tu proyecto actual
-const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-const supabaseKey = 'sb_publisable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-...'; // Pega tu clave completa aquí
+// 1. Primero cargamos la librería de Supabase (asegúrate de tener esta línea en tu HTML)
+// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+// 2. Luego inicializamos la conexión con TUS llaves
+const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+const supabaseKey = 'sb_publisable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-...'; // La que termina en LMWFE
+
+// ESTA LÍNEA DEBE IR AFUERA Y ANTES DE LA FUNCIÓN
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+// 3. Ahora sí, la función que se dispara al hacer clic
 async function procesarReserva(event) {
-    // 1. Esto detiene el refresco del navegador (el error rojo)
-    if (event) event.preventDefault();
-
+    if (event) event.preventDefault(); 
+    
     const btn = document.getElementById('btnReservar');
     
-    // 2. Capturamos los datos. Ojo: los nombres en verde deben ser 
-    // IDÉNTICOS a como los escribiste en Supabase.
+    // Captura de datos con los nombres de tus columnas
     const datosParaEnviar = {
         "nombre": document.getElementById('rNombre').value,
         "correo electrónico": document.getElementById('rEmail').value,
@@ -747,33 +750,19 @@ async function procesarReserva(event) {
         "recorrido": document.getElementById('rTour').value
     };
 
-    // Validación básica
-    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
-        alert("Por favor, completa nombre y correo.");
-        return;
-    }
-
     btn.disabled = true;
-    btn.innerText = "Guardando...";
+    btn.innerText = "Enviando...";
 
     try {
-        // 3. Intento de envío
-        const { data, error } = await _supabase
+        const { error } = await _supabase
             .from('reservas')
             .insert([datosParaEnviar]);
 
         if (error) throw error;
 
-        alert("¡Éxito! Tu reserva en Finca El Curio ha sido registrada.");
-        
-        // Limpiamos los campos para que quede listo para otro
-        document.getElementById('rNombre').value = "";
-        document.getElementById('rEmail').value = "";
-        document.getElementById('rTel').value = "";
-        
+        alert("¡Reserva guardada con éxito!");
     } catch (err) {
-        console.error("Error completo:", err);
-        alert("No se pudo guardar: " + err.message);
+        alert("Error: " + err.message);
     } finally {
         btn.disabled = false;
         btn.innerText = "✅ Confirmar Reserva";
