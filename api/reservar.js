@@ -1,34 +1,28 @@
 import { sql } from '@vercel/postgres';
 
 export default async function handler(request, response) {
-  // Solo permitimos peticiones POST (envío de datos)
+  // Solo permitimos peticiones POST (envío de datos desde el formulario)
   if (request.method === 'POST') {
-    const { nombre, email, telefono, fecha, tour } = request.body;
+    
+    // Extraemos los datos que vienen de tu formulario HTML
+    const { nombre, telefono, fecha } = request.body;
 
     try {
-      // 1. Crear la tabla si no existe (con nombres de columna que Neon entiende)
-      await sql`CREATE TABLE IF NOT EXISTS reservas (
-        id SERIAL PRIMARY KEY,
-        nombre TEXT,
-        email TEXT,
-        telefono TEXT,
-        fecha TEXT,
-        tour TEXT,
-        creado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );`;
+      // 1. Insertar los datos en la tabla que ya tienes en Neon
+      // Usamos los nombres exactos: nombre, telefono, fecha_reserva
+      await sql`INSERT INTO reservas (nombre, telefono, fecha_reserva)
+                VALUES (${nombre}, ${telefono}, ${fecha});`;
 
-      // 2. Insertar los datos de la reserva
-      await sql`INSERT INTO reservas (nombre, email, telefono, fecha, tour) 
-                VALUES (${nombre}, ${email}, ${telefono}, ${fecha}, ${tour});`;
-
+      // Mensaje de éxito para la web
       return response.status(200).json({ mensaje: "¡Reserva guardada con éxito!" });
 
     } catch (error) {
-      // Si hay un error de conexión o de base de datos
+      // Si hay un error, lo enviamos para diagnosticarlo
       return response.status(500).json({ error: error.message });
     }
+
   } else {
-    // Si alguien intenta entrar a la URL directamente desde el navegador
+    // Si alguien intenta acceder directamente a la URL
     response.status(405).send('Método no permitido');
   }
 }
