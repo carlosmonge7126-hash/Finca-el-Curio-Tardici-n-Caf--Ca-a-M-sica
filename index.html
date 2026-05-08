@@ -3536,12 +3536,11 @@ document.addEventListener('DOMContentLoaded',init);
   const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
   const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-  // 2. Esta función es la que "atrapa" los datos del formulario
+// 2. Esta función ahora envía los datos a tu propio Backend en Vercel
   async function procesarReserva() {
     const btn = document.getElementById('btnReservar');
-    const msg = document.getElementById('msgReserva');
 
-    // Capturamos los datos usando los IDs que ya tienes (rNombre, rEmail, etc.)
+    // Capturamos los datos usando los IDs de tu formulario
     const datosParaEnviar = {
       nombre: document.getElementById('rNombre').value,
       email: document.getElementById('rEmail').value,
@@ -3550,30 +3549,44 @@ document.addEventListener('DOMContentLoaded',init);
       tour: document.getElementById('rTour').value
     };
 
-    // Validación: No enviar si el nombre está vacío
-    if (!datosParaEnviar.nombre) {
-      alert("Por favor, ingresa tu nombre.");
+    // Validación básica
+    if (!datosParaEnviar.nombre || !datosParaEnviar.email) {
+      alert("Por favor, completa tu nombre y correo.");
       return;
     }
 
-    // Desactivar botón mientras envía
+    // Efecto visual en el botón
     btn.disabled = true;
-    btn.innerText = "Enviando...";
+    btn.innerText = "Procesando...";
 
-    // 3. Enviamos a Supabase
-    const { error } = await _supabase
-      .from('reservas')
-      .insert([datosParaEnviar]);
+    try {
+      // 3. Enviamos a tu nueva API (el archivo que creaste en la carpeta api)
+      const respuesta = await fetch('/api/api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(datosParaEnviar)
+      });
 
-    if (error) {
-      alert("Error al guardar: " + error.message);
-      btn.disabled = false;
-      btn.innerText = "✅ Confirmar Reserva";
-    } else {
-      alert("¡Reserva enviada con éxito a Finca El Curio!");
-      // Limpiamos el formulario
-      document.getElementById('rNombre').value = "";
-      document.getElementById('rEmail').value = "";
+      if (respuesta.ok) {
+        alert("¡Reserva enviada con éxito! Los datos ya están en tu base de datos Neon.");
+        
+        // Limpiamos los campos
+        document.getElementById('rNombre').value = "";
+        document.getElementById('rEmail').value = "";
+        document.getElementById('rTel').value = "";
+        if(document.getElementById('rFecha')) document.getElementById('rFecha').value = "";
+      } else {
+        const errorData = await respuesta.json();
+        alert("Hubo un problema en el servidor: " + (errorData.error || "Error desconocido"));
+      }
+
+    } catch (error) {
+      console.error("Error al enviar:", error);
+      alert("No se pudo conectar con el servidor. Revisa tu conexión.");
+    } finally {
+      // Restauramos el botón
       btn.disabled = false;
       btn.innerText = "✅ Confirmar Reserva";
     }
