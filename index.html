@@ -3574,76 +3574,70 @@ function init(){
 document.addEventListener('DOMContentLoaded', init);
 
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-// 1. CONFIGURACIÓN INICIAL (Fuera de las funciones para evitar el error de inicialización)
-const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-const supabaseKey = 'hmsW5EE7GuaJoNjD'; // <--- PEGA AQUÍ TU CLAVE COMPLETA
+  // B. Inicializamos la conexión inmediatamente
+  const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+  const supabaseKey = 'hmsW5EE7GuaJoNjD'; // Asegúrate de pegar la clave larga
+  
+  // Creamos la conexión global
+  const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// Creamos la conexión global
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  // C. Tu función de navegación (Mantenla igual)
+  function init() {
+    const secs = document.querySelectorAll('section[id],div[id]');
+    const navAs = document.querySelectorAll('nav a');
 
-// 2. FUNCIÓN DE PROCESAMIENTO
-async function procesarReserva(event) {
-    // Detenemos el refresco de la página (Soluciona el error de "channel closed")
-    if (event) event.preventDefault();
+    window.addEventListener('scroll', () => {
+      let cur = '';
+      secs.forEach(s => { if (window.scrollY >= s.offsetTop - 120) cur = s.id; });
+      navAs.forEach(a => { a.style.color = a.getAttribute('href') === '#' + cur ? 'var(--vc)' : ''; });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', init);
+
+  // D. La función de Reservas (Ajustada para los nombres de tu tabla)
+  async function procesarReserva(event) {
+    if (event) event.preventDefault(); // Detiene el error de "channel closed"
 
     const btn = document.getElementById('btnReservar');
-    const msg = document.getElementById('msgReserva');
-
-    // Capturamos los datos con los nombres exactos de tu tabla en Supabase
+    
     const datosParaEnviar = {
-        "nombre": document.getElementById('rNombre').value,
-        "correo electrónico": document.getElementById('rEmail').value,
-        "teléfono": document.getElementById('rTel').value,
-        "fecha": document.getElementById('rFecha').value,
-        "recorrido": document.getElementById('rTour').value
+      "nombre": document.getElementById('rNombre').value,
+      "correo electrónico": document.getElementById('rEmail').value, // Coincide con tu tabla
+      "teléfono": document.getElementById('rTel').value,           // Coincide con tu tabla
+      "fecha": document.getElementById('rFecha').value,
+      "recorrido": document.getElementById('rTour').value
     };
 
-    // Validación simple
-    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
-        alert("Por favor, completa nombre y correo.");
-        return;
-    }
-
-    // Estado visual de carga
     btn.disabled = true;
     btn.innerText = "Guardando...";
 
     try {
-        // Enviar a la tabla 'reservas'
-        const { error } = await _supabase
-            .from('reservas')
-            .insert([datosParaEnviar]);
+      const { error } = await _supabase
+        .from('reservas')
+        .insert([datosParaEnviar]);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Éxito
-        alert("¡Éxito! Tu reserva ha sido registrada en Supabase.");
-        if(msg) {
-            msg.innerText = "✅ Reserva enviada correctamente.";
-            msg.style.color = "#4CAF50";
-        }
-        
-        // Limpiar campos
-        document.getElementById('rNombre').value = "";
-        document.getElementById('rEmail').value = "";
-        document.getElementById('rTel').value = "";
-
+      alert("¡Éxito! Reserva registrada para Finca El Curio.");
+      
+      // Limpiar formulario
+      document.getElementById('rNombre').value = "";
+      document.getElementById('rEmail').value = "";
+      document.getElementById('rTel').value = "";
+      
     } catch (err) {
-        console.error("Error capturado:", err);
-        alert("Error al guardar: " + err.message);
-        if(msg) {
-            msg.innerText = "❌ Hubo un error.";
-            msg.style.color = "red";
-        }
+      console.error("Error detallado:", err);
+      alert("No se pudo guardar: " + err.message);
     } finally {
-        btn.disabled = false;
-        btn.innerText = "✅ Confirmar Reserva";
+      btn.disabled = false;
+      btn.innerText = "✅ Confirmar Reserva";
     }
-}
+  }
+</script>
 </script>
 </body>
 
