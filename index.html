@@ -3575,43 +3575,38 @@ document.addEventListener('DOMContentLoaded', init);
 
 </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // B. Inicializamos la conexión inmediatamente
-  const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-  const supabaseKey = 'hmsW5EE7GuaJoNjD'; // Asegúrate de pegar la clave larga
+  // 2. CONFIGURACIÓN (SOLO UNA VEZ)
+  const url_finca = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+  const key_finca = 'TU_CLAVE_REAL_AQUÍ'; // Pega tu clave larga
   
-  // Creamos la conexión global
-  const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  // 3. CREAR LA CONEXIÓN (CON UN NOMBRE DIFERENTE PARA EVITAR EL ERROR DE DECLARACIÓN)
+  const clienteSupabase = supabase.createClient(url_finca, key_finca);
 
-  // C. Tu función de navegación (Mantenla igual)
-  function init() {
-    const secs = document.querySelectorAll('section[id],div[id]');
-    const navAs = document.querySelectorAll('nav a');
-
-    window.addEventListener('scroll', () => {
-      let cur = '';
-      secs.forEach(s => { if (window.scrollY >= s.offsetTop - 120) cur = s.id; });
-      navAs.forEach(a => { a.style.color = a.getAttribute('href') === '#' + cur ? 'var(--vc)' : ''; });
-    });
-  }
-  document.addEventListener('DOMContentLoaded', init);
-
-  // D. La función de Reservas (Ajustada para los nombres de tu tabla)
+  // 4. LA FUNCIÓN QUE HACE EL TRABAJO
   async function procesarReserva(event) {
-    if (event) event.preventDefault(); // Detiene el error de "channel closed"
+    if (event) event.preventDefault(); 
 
-    const btn = document.getElementById('btnReservar');
-    
-    const datosParaEnviar = {
+    // Captura los datos de los cuadritos de tu formulario
+    const reserva = {
       "nombre": document.getElementById('rNombre').value,
-      "correo electrónico": document.getElementById('rEmail').value, // Coincide con tu tabla
-      "teléfono": document.getElementById('rTel').value,           // Coincide con tu tabla
+      "correo electrónico": document.getElementById('rEmail').value,
+      "teléfono": document.getElementById('rTel').value,
       "fecha": document.getElementById('rFecha').value,
       "recorrido": document.getElementById('rTour').value
     };
 
+    try {
+      const { error } = await clienteSupabase.from('reservas').insert([reserva]);
+      if (error) throw error;
+      alert("¡Reserva guardada!");
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  }
+</script>
     btn.disabled = true;
     btn.innerText = "Guardando...";
 
