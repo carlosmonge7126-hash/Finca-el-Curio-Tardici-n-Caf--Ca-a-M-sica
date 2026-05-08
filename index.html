@@ -676,58 +676,70 @@ table.tb tr:hover{background:#fafaf8;}
 </section>
 
 <!-- ════════════ RESERVAS ════════════ -->
-
 <div class="bg-dark" id="reservas">
-
   <div class="section">
-
     <div class="section-title dark-title">
-
       <span class="eyebrow" data-es="Agenda tu visita" data-en="Schedule your visit">Agenda tu visita</span>
-
       <h2 data-es="Reserva tu Espacio" data-en="Reserve Your Spot">Reserva tu Espacio</h2>
-
     </div>
 
     <div class="form-wrap">
+      <!-- 1. AGREGAMOS EL FORM AQUÍ (Cambia TU_ID por el de Formspree) -->
+      <form action="https://formspree.io/f/TU_ID_AQUI" method="POST">
+        
+        <div class="form-row">
+          <div class="fg">
+            <label data-es="Nombre completo" data-en="Full name">Nombre completo</label>
+            <!-- 2. Agregamos name="nombre" -->
+            <input type="text" name="nombre" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo" required>
+          </div>
+          <div class="fg">
+            <label data-es="Correo electrónico" data-en="Email">Correo electrónico</label>
+            <!-- 2. Agregamos name="email" -->
+            <input type="email" name="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com" required>
+          </div>
+        </div>
 
-      <div class="form-row">
+        <div class="form-row">
+          <div class="fg">
+            <label data-es="Teléfono" data-en="Phone">Teléfono</label>
+            <!-- 2. Agregamos name="telefono" -->
+            <input type="tel" name="telefono" id="rTel" placeholder="8888-8888" required>
+          </div>
+          <div class="fg">
+            <label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label>
+            <!-- 2. Agregamos name="fecha" -->
+            <input type="date" name="fecha" id="rFecha" required>
+          </div>
+        </div>
 
-        <div class="fg"><label data-es="Nombre completo" data-en="Full name">Nombre completo</label><input type="text" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo"></div>
+        <div class="form-row">
+          <div class="fg">
+            <label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label>
+            <!-- 2. Agregamos name="tour" -->
+            <select name="tour" id="rTour">
+               <option value="Tradicional">Tour Tradicional</option>
+               <option value="Molienda">Tour de la Molienda</option>
+               <option value="Catacion">Cata de Café</option>
+            </select>
+          </div>
+        </div>
 
-        <div class="fg"><label data-es="Correo electrónico" data-en="Email">Correo electrónico</label><input type="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com"></div>
+        <!-- Campos ocultos para que el JS no falle -->
+        <select id="rHora" style="display:none;"></select>
+        <div id="infoCupos" style="display:none;"></div>
 
-      </div>
+        <!-- 3. El botón ahora es type="submit" -->
+        <button type="submit" class="btn btn-full" id="btnReservar" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">
+          ✅ Confirmar Reserva
+        </button>
 
-      <div class="form-row">
-
-        <div class="fg"><label data-es="Teléfono" data-en="Phone">Teléfono</label><input type="tel" id="rTel" placeholder="8888-8888"></div>
-
-        <div class="fg"><label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label><input type="date" id="rFecha"></div>
-
-      </div>
-
-      <div class="form-row">
-
-        <div class="fg"><label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label><select id="rTour"></select></div>
-
-      </div>
-
-      <!-- rHora oculto para que la lógica JS no rompa -->
-      <select id="rHora" style="display:none;"></select>
-      <div id="infoCupos" style="display:none;"></div>
-
-      <button class="btn btn-full" id="btnReservar" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">✅ Confirmar Reserva</button>
-
-      <p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
-
+        <p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
+      </form>
     </div>
-
   </div>
-
-</div>
-
-<!-- ════════════ PAGOS ════════════ -->
+</div> 
+  <!-- ════════════ PAGOS ════════════ -->
 
 <div class="bg-dark-2">
 
