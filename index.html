@@ -716,32 +716,29 @@ table.tb tr:hover{background:#fafaf8;}
         </div>
       </div>
 
-   <button type="button" class="btn btn-full" id="btnReservar" onclick="procesarReserva(event)">
+<button type="button" class="btn btn-full" id="btnReservar" onclick="procesarReserva(event)">
   ✅ Confirmar Reserva
 </button>
-
       <p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
     </div>
   </div>
 </div>
   <script>
-// 1. Primero cargamos la librería de Supabase (asegúrate de tener esta línea en tu HTML)
-// <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-// 2. Luego inicializamos la conexión con TUS llaves
+// 1. LAS LLAVES VAN AL PURO PRINCIPIO (FUERA DE CUALQUIER FUNCIÓN)
 const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-const supabaseKey = 'sb_publisable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-...'; // La que termina en LMWFE
+const supabaseKey = 'sb_publisable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-f9829374'; // Revisa que esté completa
 
-// ESTA LÍNEA DEBE IR AFUERA Y ANTES DE LA FUNCIÓN
+// 2. CREAMOS LA CONEXIÓN DE INMEDIATO
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// 3. Ahora sí, la función que se dispara al hacer clic
+// 3. AHORA SÍ, LA FUNCIÓN QUE SE ACTIVA AL DAR CLIC
 async function procesarReserva(event) {
+    // Evita que la página se refresque (esto causa el error de canal cerrado)
     if (event) event.preventDefault(); 
-    
+
     const btn = document.getElementById('btnReservar');
     
-    // Captura de datos con los nombres de tus columnas
+    // Captura de datos con nombres EXACTOS de tu tabla
     const datosParaEnviar = {
         "nombre": document.getElementById('rNombre').value,
         "correo electrónico": document.getElementById('rEmail').value,
@@ -750,19 +747,33 @@ async function procesarReserva(event) {
         "recorrido": document.getElementById('rTour').value
     };
 
+    // Validación básica
+    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
+        alert("Por favor, pon tu nombre y correo.");
+        return;
+    }
+
     btn.disabled = true;
-    btn.innerText = "Enviando...";
+    btn.innerText = "Guardando...";
 
     try {
+        // ENVIAMOS A SUPABASE
         const { error } = await _supabase
             .from('reservas')
             .insert([datosParaEnviar]);
 
         if (error) throw error;
 
-        alert("¡Reserva guardada con éxito!");
+        alert("¡Éxito! Tu reserva en Finca El Curio ha sido registrada.");
+        
+        // Limpiamos los campos
+        document.getElementById('rNombre').value = "";
+        document.getElementById('rEmail').value = "";
+        document.getElementById('rTel').value = "";
+        
     } catch (err) {
-        alert("Error: " + err.message);
+        console.error("Error completo:", err);
+        alert("No se pudo guardar: " + err.message);
     } finally {
         btn.disabled = false;
         btn.innerText = "✅ Confirmar Reserva";
