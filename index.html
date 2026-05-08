@@ -3539,9 +3539,8 @@ document.addEventListener('DOMContentLoaded',init);
   // 2. Esta función es la que "atrapa" los datos del formulario
   async function procesarReserva() {
     const btn = document.getElementById('btnReservar');
-    const msg = document.getElementById('msgReserva');
-
-    // 1. Capturamos los datos con los nombres EXACTOS de tu tabla en Supabase
+    
+    // 1. Capturamos los datos de tus cuadritos (IDs del HTML)
     const datosParaEnviar = {
       "nombre": document.getElementById('rNombre').value,
       "correo electrónico": document.getElementById('rEmail').value,
@@ -3550,38 +3549,35 @@ document.addEventListener('DOMContentLoaded',init);
       "recorrido": document.getElementById('rTour').value
     };
 
-    // Validación básica para no enviar vacíos
+    // Validación simple
     if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
-      alert("Por favor, completa al menos el nombre y el correo.");
+      alert("Por favor, completa nombre y correo.");
       return;
     }
 
-    // Desactivar botón mientras envía
     btn.disabled = true;
     btn.innerText = "Enviando...";
 
-    // 2. Enviamos a Supabase
     try {
+        // 2. Enviamos a la tabla 'reservas'
         const { error } = await _supabase
           .from('reservas')
           .insert([datosParaEnviar]);
 
         if (error) throw error;
 
-        // Si sale bien
+        // 3. ¡Éxito!
         alert("¡Reserva enviada con éxito a Finca El Curio!");
         
-        // Limpiamos los campos para una nueva reserva
+        // Limpiar el formulario
         document.getElementById('rNombre').value = "";
         document.getElementById('rEmail').value = "";
         document.getElementById('rTel').value = "";
         
     } catch (error) {
-        // Si hay un error de conexión o de nombres
-        console.error("Error detallado:", error);
-        alert("Error al guardar: " + error.message);
+        console.error("Error de Supabase:", error);
+        alert("Hubo un error: " + error.message);
     } finally {
-        // El botón vuelve a la normalidad pase lo que pase
         btn.disabled = false;
         btn.innerText = "✅ Confirmar Reserva";
     }
