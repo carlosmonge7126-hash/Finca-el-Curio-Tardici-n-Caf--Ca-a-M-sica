@@ -1,0 +1,31 @@
+import { sql } from '@vercel/postgres';
+
+export default async function handler(request, response) {
+  if (request.method === 'POST') {
+    // Capturamos los datos que vienen del formulario
+    const { nombre, email, telefono, fecha, tour } = request.body;
+
+    try {
+      // Creamos la tabla si no existe (solo ocurrirá la primera vez)
+      await sql`CREATE TABLE IF NOT EXISTS reservas (
+        id SERIAL PRIMARY KEY,
+        nombre TEXT,
+        email TEXT,
+        telefono TEXT,
+        fecha TEXT,
+        tour TEXT,
+        creado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );`;
+
+      // Insertamos la información en la base de datos
+      await sql`INSERT INTO reservas (nombre, email, telefono, fecha, tour) 
+                VALUES (${nombre}, ${email}, ${telefono}, ${fecha}, ${tour});`;
+
+      return response.status(200).json({ mensaje: "Reserva guardada" });
+    } catch (error) {
+      return response.status(500).json({ error: error.message });
+    }
+  } else {
+    response.status(405).send('Método no permitido');
+  }
+}
