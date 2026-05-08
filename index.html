@@ -675,112 +675,60 @@ table.tb tr:hover{background:#fafaf8;}
 
 </section>
 
+<!-- ════════════ RESERVAS ════════════ -->
+
 <div class="bg-dark" id="reservas">
+
   <div class="section">
+
     <div class="section-title dark-title">
+
       <span class="eyebrow" data-es="Agenda tu visita" data-en="Schedule your visit">Agenda tu visita</span>
+
       <h2 data-es="Reserva tu Espacio" data-en="Reserve Your Spot">Reserva tu Espacio</h2>
+
     </div>
 
     <div class="form-wrap">
+
       <div class="form-row">
-        <div class="fg">
-          <label data-es="Nombre completo" data-en="Full name">Nombre completo</label>
-          <input type="text" id="rNombre" placeholder="Tu nombre completo">
-        </div>
-        <div class="fg">
-          <label data-es="Correo electrónico" data-en="Email">Correo electrónico</label>
-          <input type="email" id="rEmail" placeholder="correo@ejemplo.com">
-        </div>
+
+        <div class="fg"><label data-es="Nombre completo" data-en="Full name">Nombre completo</label><input type="text" id="rNombre" data-ph-es="Tu nombre completo" data-ph-en="Your full name" placeholder="Tu nombre completo"></div>
+
+        <div class="fg"><label data-es="Correo electrónico" data-en="Email">Correo electrónico</label><input type="email" id="rEmail" data-ph-es="correo@ejemplo.com" data-ph-en="email@example.com" placeholder="correo@ejemplo.com"></div>
+
       </div>
 
       <div class="form-row">
-        <div class="fg">
-          <label data-es="Teléfono" data-en="Phone">Teléfono</label>
-          <input type="tel" id="rTel" placeholder="8888-8888">
-        </div>
-        <div class="fg">
-          <label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label>
-          <input type="date" id="rFecha">
-        </div>
+
+        <div class="fg"><label data-es="Teléfono" data-en="Phone">Teléfono</label><input type="tel" id="rTel" placeholder="8888-8888"></div>
+
+        <div class="fg"><label data-es="Fecha deseada" data-en="Desired date">Fecha deseada</label><input type="date" id="rFecha"></div>
+
       </div>
 
       <div class="form-row">
-        <div class="fg">
-          <label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label>
-          <select id="rTour">
-            <option value="Tour General">Tour General</option>
-            <option value="Museo Vivo">Museo Vivo</option>
-            <option value="Cata de Café">Cata de Café</option>
-          </select>
-        </div>
+
+        <div class="fg"><label data-es="Tour seleccionado" data-en="Selected tour">Tour seleccionado</label><select id="rTour"></select></div>
+
       </div>
 
-<button type="button" class="btn btn-full" id="btnReservar" onclick="procesarReserva(event)">
+      <!-- rHora oculto para que la lógica JS no rompa -->
+      <select id="rHora" style="display:none;"></select>
+      <div id="infoCupos" style="display:none;"></div>
+
+    <button class="btn btn-full" id="btnReservar" onclick="procesarReserva()" data-es="✅ Confirmar Reserva" data-en="✅ Confirm Booking">
   ✅ Confirmar Reserva
 </button>
-      <p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
+
+<p id="msgReserva" style="margin-top:14px;text-align:center;font-size:15px;"></p>
     </div>
+
   </div>
+
 </div>
-  <script>
-// 1. LAS LLAVES VAN AL PURO PRINCIPIO (FUERA DE CUALQUIER FUNCIÓN)
-const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-const supabaseKey = 'sb_publisable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-f9829374'; // Revisa que esté completa
 
-// 2. CREAMOS LA CONEXIÓN DE INMEDIATO
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-// 3. AHORA SÍ, LA FUNCIÓN QUE SE ACTIVA AL DAR CLIC
-async function procesarReserva(event) {
-    // Evita que la página se refresque (esto causa el error de canal cerrado)
-    if (event) event.preventDefault(); 
-
-    const btn = document.getElementById('btnReservar');
-    
-    // Captura de datos con nombres EXACTOS de tu tabla
-    const datosParaEnviar = {
-        "nombre": document.getElementById('rNombre').value,
-        "correo electrónico": document.getElementById('rEmail').value,
-        "teléfono": document.getElementById('rTel').value,
-        "fecha": document.getElementById('rFecha').value,
-        "recorrido": document.getElementById('rTour').value
-    };
-
-    // Validación básica
-    if (!datosParaEnviar.nombre || !datosParaEnviar["correo electrónico"]) {
-        alert("Por favor, pon tu nombre y correo.");
-        return;
-    }
-
-    btn.disabled = true;
-    btn.innerText = "Guardando...";
-
-    try {
-        // ENVIAMOS A SUPABASE
-        const { error } = await _supabase
-            .from('reservas')
-            .insert([datosParaEnviar]);
-
-        if (error) throw error;
-
-        alert("¡Éxito! Tu reserva en Finca El Curio ha sido registrada.");
-        
-        // Limpiamos los campos
-        document.getElementById('rNombre').value = "";
-        document.getElementById('rEmail').value = "";
-        document.getElementById('rTel').value = "";
-        
-    } catch (err) {
-        console.error("Error completo:", err);
-        alert("No se pudo guardar: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "✅ Confirmar Reserva";
-    }
-}
-  </script>
-  <!-- ════════════ PAGOS ════════════ -->
+<!-- ════════════ PAGOS ════════════ -->
 
 <div class="bg-dark-2">
 
@@ -3559,80 +3507,77 @@ function init(){
   const btnT = document.getElementById('btnAbrirTestimonio');
   if(btnT) btnT.style.display = 'inline-flex';
 
- function init() { // <--- Asegúrate de que esta llave esté ahí
   // Nav activo
-  const secs = document.querySelectorAll('section[id],div[id]');
-  const navAs = document.querySelectorAll('nav a');
 
-  window.addEventListener('scroll', () => {
-    let cur = '';
-    secs.forEach(s => { if (window.scrollY >= s.offsetTop - 120) cur = s.id; });
-    navAs.forEach(a => { a.style.color = a.getAttribute('href') === '#' + cur ? 'var(--vc)' : ''; });
+  const secs=document.querySelectorAll('section[id],div[id]');
+
+  const navAs=document.querySelectorAll('nav a');
+
+  window.addEventListener('scroll',()=>{
+
+    let cur='';
+
+    secs.forEach(s=>{if(window.scrollY>=s.offsetTop-120) cur=s.id;});
+
+    navAs.forEach(a=>{a.style.color=a.getAttribute('href')==='#'+cur?'var(--vc)':'';});
+
   });
+
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded',init);
 
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // 2. CONFIGURACIÓN (SOLO UNA VEZ)
-  const url_finca = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-  const key_finca = 'hmsW5EE7GuaJoNjD'; // Pega tu clave larga
-  
-  // 3. CREAR LA CONEXIÓN (CON UN NOMBRE DIFERENTE PARA EVITAR EL ERROR DE DECLARACIÓN)
-  const clienteSupabase = supabase.createClient(url_finca, key_finca);
+  // 1. La conexión (Asegúrate de cambiar TU_LLAVE_ANON_AQUÍ por la real)
+  const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+  const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
+  const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-  // 4. LA FUNCIÓN QUE HACE EL TRABAJO
-  async function procesarReserva(event) {
-    if (event) event.preventDefault(); 
+  // 2. Esta función es la que "atrapa" los datos del formulario
+  async function procesarReserva() {
+    const btn = document.getElementById('btnReservar');
+    const msg = document.getElementById('msgReserva');
 
-    // Captura los datos de los cuadritos de tu formulario
-    const reserva = {
-      "nombre": document.getElementById('rNombre').value,
-      "correo electrónico": document.getElementById('rEmail').value,
-      "teléfono": document.getElementById('rTel').value,
-      "fecha": document.getElementById('rFecha').value,
-      "recorrido": document.getElementById('rTour').value
+    // Capturamos los datos usando los IDs que ya tienes (rNombre, rEmail, etc.)
+    const datosParaEnviar = {
+      nombre: document.getElementById('rNombre').value,
+      email: document.getElementById('rEmail').value,
+      telefono: document.getElementById('rTel').value,
+      fecha: document.getElementById('rFecha').value,
+      tour: document.getElementById('rTour').value
     };
 
-    try {
-      const { error } = await clienteSupabase.from('reservas').insert([reserva]);
-      if (error) throw error;
-      alert("¡Reserva guardada!");
-    } catch (err) {
-      alert("Error: " + err.message);
+    // Validación: No enviar si el nombre está vacío
+    if (!datosParaEnviar.nombre) {
+      alert("Por favor, ingresa tu nombre.");
+      return;
     }
-  }
-</script>
+
+    // Desactivar botón mientras envía
     btn.disabled = true;
-    btn.innerText = "Guardando...";
+    btn.innerText = "Enviando...";
 
-    try {
-      const { error } = await _supabase
-        .from('reservas')
-        .insert([datosParaEnviar]);
+    // 3. Enviamos a Supabase
+    const { error } = await _supabase
+      .from('reservas')
+      .insert([datosParaEnviar]);
 
-      if (error) throw error;
-
-      alert("¡Éxito! Reserva registrada para Finca El Curio.");
-      
-      // Limpiar formulario
+    if (error) {
+      alert("Error al guardar: " + error.message);
+      btn.disabled = false;
+      btn.innerText = "✅ Confirmar Reserva";
+    } else {
+      alert("¡Reserva enviada con éxito a Finca El Curio!");
+      // Limpiamos el formulario
       document.getElementById('rNombre').value = "";
       document.getElementById('rEmail').value = "";
-      document.getElementById('rTel').value = "";
-      
-    } catch (err) {
-      console.error("Error detallado:", err);
-      alert("No se pudo guardar: " + err.message);
-    } finally {
       btn.disabled = false;
       btn.innerText = "✅ Confirmar Reserva";
     }
   }
-</script>
 </script>
 </body>
 
