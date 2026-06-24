@@ -773,6 +773,7 @@ table.tb tr:hover{background:#fafaf8;}
 <script src="https://jsdelivr.net"></script>
 <script src="https://jsdelivr.net"></script>
 <script>
+<script>
 // ═══════════════════════════════════════════
 //  CONSTANTES Y ESTADO
 // ═══════════════════════════════════════════
@@ -1073,7 +1074,6 @@ function aplicarImagenes(){
       padrino.style.backgroundImage = 'linear-gradient(135deg, #0d2a16, #1a4520)';
     }
   }
-  // Tours se actualizan en renderTours()
 }
 function renderImageUploader(){
   const container = document.getElementById('imageUploaderContainer');
@@ -1114,7 +1114,7 @@ function subirImagen(key){
     CFG.images[key] = e.target.result;
     guardar();
     aplicarImagenes();
-    renderTours();   // Actualiza los tours inmediatamente
+    renderTours();
     renderImageUploader();
     showMsg('msgConfigGuardado', '✅ Imagen actualizada', 'ok', 5000);
     console.log(`Imagen ${key} actualizada.`);
@@ -1182,12 +1182,10 @@ function renderTours() {
     const tours = toursBase
         .filter(t => t.visible !== false)
         .map(t => {
-            // Usamos el nombre original del archivo para buscar la imagen personalizada
-            const originalImg = t.img; // ej: "Completo.png"
+            const originalImg = t.img;
             const keyMap = { 'Completo.png':'tourCompleto', 'Caña.png':'tourCaña', 'Siembra.png':'tourSiembra' };
             const key = keyMap[originalImg];
-            let imgSrc = originalImg; // por defecto el nombre del archivo
-            // Si existe una imagen personalizada, la usamos
+            let imgSrc = originalImg;
             if (key && CFG.images && CFG.images[key]) {
                 imgSrc = CFG.images[key];
             }
@@ -1321,23 +1319,125 @@ function actualizarHorarios() {
 }
 
 // ═══════════════════════════════════════════
-//  RESERVAS
+//  ¡PROCESAR RESERVA CONECTADO A NEON!
 // ═══════════════════════════════════════════
-function hacerReserva(){
-  const n=document.getElementById('rNombre').value.trim(), e=document.getElementById('rEmail').value.trim(),
-        t=document.getElementById('rTel').value.trim(), f=document.getElementById('rFecha').value,
-        to=document.getElementById('rTour').value,
-        msg=document.getElementById('msgReserva');
-  if(!n||!e||!f){msg.innerHTML=`<span style="color:#c0392b;">⚠️ ${lang==='es'?'Complete todos los campos':'Please fill all fields'}</span>`;return;}
-  if(CFG.soloFinDeSemana){
-    const d = new Date(f+'T00:00:00').getDay();
-    if(d!==0&&d!==6){msg.innerHTML=`<span style="color:#c0392b;">⚠️ Solo están disponibles sábados y domingos.</span>`;return;}
+async function procesarReserva() {
+  const btn = document.getElementById('btnReservar');
+  const msg = document.getElementById('msgReserva');
+  
+  const n = document.getElementById('rNombre').value.trim();
+  const e = document.getElementById('rEmail').value.trim();
+  const t = document.getElementById('rTel').value.trim();
+  const f = document.getElementById('rFecha').value;
+  const to = document.getElementById('rTour').value;
+
+  if (!n || !e || !f) {
+    if (msg) {
+      msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang==='es'?'Complete todos los campos necesarios':'Please fill all required fields'}</span>`;
+    }
+    return;
   }
-  DB.reservas.push({nombre:n,email:e,telefono:t,fecha:f,tour:to,horario:'',fechaReserva:new Date().toISOString()});
-  guardar();
-  msg.innerHTML=`<span style="color:var(--va);">✅ ${n}, ${lang==='es'?'¡Reserva confirmada! El equipo le confirmará el horario.':'Booking confirmed! The team will confirm your schedule.'}</span>`;
-  ['rNombre','rEmail','rTel','rFecha'].forEach(id=>document.getElementById(id).value='');
-  actualizarHorarios();
+
+  if (CFG.soloFinDeSemana) {
+    const d = new Date(f + 'T00:00:00').getDay();
+    if (d !== 0 && d !== 6) {
+      msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang==='es'?'Solo están disponibles sábados y domingos.':'Only Saturdays and Sundays are available.'}</span>`;
+      return;
+    }
+  }
+
+  // Deshabilitar botón para evitar doble envío
+  btn.disabled = true;
+  btn.innerText = lang === 'es' ? "⏳ Enviando..." : "⏳ Sending...";
+  msg.innerHTML = `<span style="color:#f39c12;">⏳ ${lang==='es'?'Enviando reserva a la base de datos...':'Sending booking to database...'}</span>`;
+
+  try {
+    const respuesta = await fetch('/api/reservar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: n,
+        email: e,
+        telefono: t || '',
+        fecha: f,
+        tour: to || '',
+        horario: 'Pendiente'
+      })
+    });
+
+    const datos = await respuesta.json();
+
+    if (datos.success) {
+      // Guardar también en localStorage para respaldo local
+      if (!DB.reservas) DB.reservas = [];
+      DB.reservas.push({
+        nombre: n,
+        email: e,
+        telefono: t || '',
+        fecha: f,
+        tour: to || '',
+        horario: 'Pendiente',
+        fechaReserva: new Date().toISOString()
+      });
+      guardar();
+
+      msg.innerHTML = `<span style="color:#27ae60;">✅ ${n}, ${lang==='es'?'¡Reserva confirmada! El equipo le confirmará el horario.':'Booking confirmed! The team will confirm your schedule.'}</span>`;
+      
+      // Limpiar formulario
+      ['rNombre', 'rEmail', 'rTel', 'rFecha'].forEach(id => document.getElementById(id).value = '');
+      
+      // Actualizar vista admin si está abierta
+      if (document.getElementById('moAdminPanel').classList.contains('open')) {
+        await sincronizarReservasDesdeLaNube();
+      }
+      
+      actualizarHorarios();
+    } else {
+      msg.innerHTML = `<span style="color:#c0392b;">❌ ${datos.error || 'Error al guardar la reserva'}</span>`;
+    }
+  } catch (error) {
+    console.error('Error en reserva:', error);
+    msg.innerHTML = `<span style="color:#c0392b;">❌ ${lang==='es'?'Error de conexión con el servidor':'Server connection error'}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
+}
+
+// ═══════════════════════════════════════════
+//  SINCRONIZAR RESERVAS DESDE NEON
+// ═══════════════════════════════════════════
+async function sincronizarReservasDesdeLaNube() {
+  try {
+    const respuesta = await fetch('/api/reservar');
+    if (!respuesta.ok) {
+      throw new Error('No se pudieron traer las reservas del servidor.');
+    }
+    const datosBD = await respuesta.json();
+    if (Array.isArray(datosBD)) {
+      DB.reservas = datosBD.map(res => ({
+        nombre: res.nombre_visitante || res.nombre || '',
+        email: res.email || '',
+        telefono: res.telefono || '',
+        fecha: res.fecha_reserva || res.fecha || '',
+        tour: res.tour || '',
+        horario: res.horario || '',
+        fechaReserva: res.fecha_creacion || res.fecha_reserva || new Date().toISOString()
+      }));
+      guardar();
+      if (typeof renderReservasAdmin === 'function') {
+        renderReservasAdmin();
+      }
+      if (typeof actualizarHorarios === 'function') {
+        actualizarHorarios();
+      }
+      console.log(`✅ ${DB.reservas.length} reservas sincronizadas desde Neon`);
+    }
+  } catch (error) {
+    console.error('Error al sincronizar reservas:', error);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1357,7 +1457,6 @@ function registrarCliente(){
 }
 function loginCliente(){
   const e=document.getElementById('liEmail').value.trim(), p=document.getElementById('liPass').value;
-  // Verificar si es admin
   if(btoa(e)===AE && btoa(p)===AP){
     adminOk=true;
     cerrarModal('moLogin');
@@ -1400,6 +1499,9 @@ function modoLogueado(ok){
   document.getElementById('btnLogoutCliente').style.display=ok?'inline-block':'none';
   document.getElementById('miPlanta').style.display=ok?'block':'none';
   document.getElementById('padrino').style.display=ok?'block':'none';
+  // Mostrar botón admin solo si está logueado
+  const adminBtn = document.getElementById('adminBtn');
+  if(adminBtn) adminBtn.style.display = ok ? 'flex' : 'none';
 }
 function actualizarVistaMiPlanta(){
   if(!clienteActual) return;
@@ -2183,65 +2285,13 @@ function exportarExcel(){
 }
 
 // ═══════════════════════════════════════════
+//  INICIALIZAR
 // ═══════════════════════════════════════════
-//  INICIALIZAR Y CONEXIÓN A BASE DE DATOS
-// ═══════════════════════════════════════════
-
-// ═══════════════════════════════════════════
-//  SINCRONIZAR RESERVAS DESDE VERCEL POSTGRES
-// ═══════════════════════════════════════════
-async function sincronizarReservasDesdeLaNube() {
-  try {
-
-    const respuesta = await fetch('/api/reservar');
-
-    if (!respuesta.ok) {
-      throw new Error('No se pudieron traer las reservas del servidor.');
-    }
-
-    const datosBD = await respuesta.json();
-
-    if (!Array.isArray(datosBD)) {
-      console.error('La API no devolvió un arreglo:', datosBD);
-      return;
-    }
-
-    DB.reservas = datosBD.map(res => ({
-      nombre: res.nombre || '',
-      email: res.email || '',
-      telefono: res.telefono || '',
-      fecha: res.fecha_reserva || '',
-      tour: res.tour || '',
-      horario: res.horario || '',
-      fechaReserva: res.fecha_creacion || res.fecha_reserva || ''
-    }));
-
-    guardar();
-
-    if (typeof renderReservasAdmin === 'function') {
-      renderReservasAdmin();
-    }
-
-    if (typeof actualizarHorarios === 'function') {
-      actualizarHorarios();
-    }
-
-    if (typeof renderCap === 'function') {
-      renderCap();
-    }
-
-    console.log(`✅ ${DB.reservas.length} reservas sincronizadas`);
-
-  } catch (error) {
-    console.error('Error al sincronizar el panel de administración:', error);
-  }
+function scrollToReserva(){
+  document.getElementById('reservas').scrollIntoView({ behavior: 'smooth' });
 }
 
-// ═══════════════════════════════════════════
-//  INICIALIZACIÓN
-// ═══════════════════════════════════════════
-async function init(){
-
+function init(){
   cargar();
   aplicarImagenes();
   aplicarVisibilidad();
@@ -2249,130 +2299,77 @@ async function init(){
   renderCap();
   renderTours();
   actualizarHorarios();
-
   const hoyISO = new Date().toISOString().split('T')[0];
-
   const rFechaEl = document.getElementById('rFecha');
-  if (rFechaEl) rFechaEl.min = hoyISO;
-
+  if(rFechaEl) rFechaEl.min = hoyISO;
   const selFechaAdminEl = document.getElementById('selFechaAdmin');
-  if (selFechaAdminEl) selFechaAdminEl.min = hoyISO;
+  if(selFechaAdminEl) selFechaAdminEl.min = hoyISO;
 
-  // Eventos principales
-  document.getElementById('btnReg')?.addEventListener('click', ()=>abrirModal('moReg'));
-  document.getElementById('btnLogin')?.addEventListener('click', ()=>abrirModal('moLogin'));
-  document.getElementById('btnLogoutCliente')?.addEventListener('click', logoutCliente);
-  document.getElementById('btnDoReg')?.addEventListener('click', registrarCliente);
-  document.getElementById('btnDoLogin')?.addEventListener('click', loginCliente);
-  document.getElementById('btnAbrirRecup')?.addEventListener('click', ()=>{
-    cerrarModal('moLogin');
-    abrirModal('moRecup');
-  });
+  // Eventos de botones usando addEventListener para mayor robustez
+  document.getElementById('btnReg').addEventListener('click', ()=>abrirModal('moReg'));
+  document.getElementById('btnLogin').addEventListener('click', ()=>abrirModal('moLogin'));
+  document.getElementById('btnLogoutCliente').addEventListener('click', logoutCliente);
+  document.getElementById('btnDoReg').addEventListener('click', registrarCliente);
+  document.getElementById('btnDoLogin').addEventListener('click', loginCliente);
+  document.getElementById('btnAbrirRecup').addEventListener('click', ()=>{cerrarModal('moLogin'); abrirModal('moRecup');});
+  document.getElementById('btnDoRecup').addEventListener('click', enviarRecuperacion);
+  document.getElementById('btnDoReset').addEventListener('click', guardarNuevaPass);
+  document.getElementById('btnGuardarTel').addEventListener('click', guardarTelCliente);
+  document.getElementById('btnMiCuenta').addEventListener('click', (e)=>{e.preventDefault(); abrirMiCuenta();});
+  document.getElementById('btnGuardarCuenta').addEventListener('click', guardarCuenta);
+  document.querySelectorAll('.opcion-aporte').forEach(el=>el.addEventListener('click', ()=>toggleAporte(el)));
+  document.getElementById('btnAceptarPadrino').addEventListener('click', registrarPadrino);
+  document.getElementById('rFecha').addEventListener('change', actualizarHorarios);
+  // El botón de reserva ahora usa procesarReserva (conectado a Neon)
+  document.getElementById('btnReservar').addEventListener('click', procesarReserva);
+  document.getElementById('btnDoEmail').addEventListener('click', enviarEmail);
+  document.getElementById('btnSubirImgCliente').addEventListener('click', subirImgCliente);
+  document.getElementById('btnGuardarComentario').addEventListener('click', guardarComentario);
+  document.getElementById('btnDoAdminLogin').addEventListener('click', loginAdmin);
+  document.getElementById('btnAdminLogout').addEventListener('click', logoutAdmin);
+  document.getElementById('btnGuardarPlanta').addEventListener('click', guardarPlantaAdmin);
+  document.getElementById('btnExcel').addEventListener('click', exportarExcel);
+  document.getElementById('btnSaveConfig').addEventListener('click', guardarConfig);
+  document.getElementById('btnSaveBancos').addEventListener('click', guardarBancos);
+  document.getElementById('btnSaveMetodosPago').addEventListener('click', guardarMetodosPago);
+  document.getElementById('btnSaveTours').addEventListener('click', guardarTours);
+  // Capacidad: el botón tiene onclick en el HTML, pero también podemos asignar evento
+  const capBtn = document.querySelector('[onclick="guardarCapacidadPlantas()"]');
+  if(capBtn) capBtn.addEventListener('click', guardarCapacidadPlantas);
 
-  document.getElementById('btnDoRecup')?.addEventListener('click', enviarRecuperacion);
-  document.getElementById('btnDoReset')?.addEventListener('click', guardarNuevaPass);
-  document.getElementById('btnGuardarTel')?.addEventListener('click', guardarTelCliente);
-
-  document.getElementById('btnMiCuenta')?.addEventListener('click', (e)=>{
-    e.preventDefault();
-    abrirMiCuenta();
-  });
-
-  document.getElementById('btnGuardarCuenta')?.addEventListener('click', guardarCuenta);
-
-  document.querySelectorAll('.opcion-aporte').forEach(el=>{
-    el.addEventListener('click', ()=>toggleAporte(el));
-  });
-
-  document.getElementById('btnAceptarPadrino')?.addEventListener('click', registrarPadrino);
-  document.getElementById('rFecha')?.addEventListener('change', actualizarHorarios);
-  document.getElementById('btnReservar')?.addEventListener('click', procesarReserva);
-  document.getElementById('btnDoEmail')?.addEventListener('click', enviarEmail);
-  document.getElementById('btnSubirImgCliente')?.addEventListener('click', subirImgCliente);
-  document.getElementById('btnGuardarComentario')?.addEventListener('click', guardarComentario);
-
-  document.getElementById('btnDoAdminLogin')?.addEventListener('click', loginAdmin);
-  document.getElementById('btnAdminLogout')?.addEventListener('click', logoutAdmin);
-  document.getElementById('btnGuardarPlanta')?.addEventListener('click', guardarPlantaAdmin);
-
-  document.getElementById('btnExcel')?.addEventListener('click', exportarExcel);
-  document.getElementById('btnSaveConfig')?.addEventListener('click', guardarConfig);
-  document.getElementById('btnSaveBancos')?.addEventListener('click', guardarBancos);
-  document.getElementById('btnSaveMetodosPago')?.addEventListener('click', guardarMetodosPago);
-  document.getElementById('btnSaveTours')?.addEventListener('click', guardarTours);
-
-  // Capacidad
-  const capBtn = document.querySelector('[onclick*="guardarCapacidadPlantas"]');
-  if (capBtn) {
-    capBtn.addEventListener('click', guardarCapacidadPlantas);
-  }
-
-  document.querySelectorAll('.admin-nav-btn').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      mostrarSecAdmin(b.getAttribute('data-sec'));
-    });
-  });
-
-  document.querySelectorAll('.filtro-btn').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      document.querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('activo'));
-      b.classList.add('activo');
-      filtroClientes = b.getAttribute('data-fil');
-      renderClientes();
-    });
-  });
-
+  document.querySelectorAll('.admin-nav-btn').forEach(b=>b.addEventListener('click', ()=>mostrarSecAdmin(b.getAttribute('data-sec'))));
+  document.querySelectorAll('.filtro-btn').forEach(b=>b.addEventListener('click', ()=>{
+    document.querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('activo'));
+    b.classList.add('activo'); filtroClientes=b.getAttribute('data-fil'); renderClientes();
+  }));
   document.addEventListener('change', e=>{
-
-    if (e.target.id === 'selReservaAdmin') {
+    if(e.target.id==='selReservaAdmin'){
       const fSel = document.getElementById('selFechaAdmin');
-      if (fSel) fSel.value = '';
+      if(fSel) fSel.value = '';
       poblarSelHorarioAdmin();
     }
-
-    if (e.target.id === 'selFechaAdmin') {
-      poblarSelHorarioAdmin();
-    }
+    if(e.target.id==='selFechaAdmin') poblarSelHorarioAdmin();
   });
 
   const savedLang = localStorage.getItem('fec_lang') || 'es';
-
-  if (savedLang !== 'es') {
-    setLang(savedLang);
-  }
-
+  if(savedLang !== 'es') setLang(savedLang);
   renderTestimonios();
-
   const btnT = document.getElementById('btnAbrirTestimonio');
-  if (btnT) btnT.style.display = 'inline-flex';
-
-  const secs = document.querySelectorAll('section[id],div[id]');
-  const navAs = document.querySelectorAll('nav a');
-
+  if(btnT) btnT.style.display = 'inline-flex';
+  const secs=document.querySelectorAll('section[id],div[id]');
+  const navAs=document.querySelectorAll('nav a');
   window.addEventListener('scroll', ()=>{
-    let cur = '';
-
-    secs.forEach(s=>{
-      if (window.scrollY >= s.offsetTop - 120) {
-        cur = s.id;
-      }
-    });
-
-    navAs.forEach(a=>{
-      a.style.color =
-        a.getAttribute('href') === '#' + cur
-          ? 'var(--vc)'
-          : '';
-    });
+    let cur='';
+    secs.forEach(s=>{if(window.scrollY>=s.offsetTop-120) cur=s.id;});
+    navAs.forEach(a=>{a.style.color=a.getAttribute('href')==='#'+cur?'var(--vc)':'';});
   });
-
   renderImageUploader();
-
-  // IMPORTANTE:
-  // Cargar reservas reales desde Vercel al iniciar
-  await sincronizarReservasDesdeLaNube();
+  
+  // Sincronizar reservas desde Neon al cargar
+  setTimeout(async () => {
+    await sincronizarReservasDesdeLaNube();
+  }, 1000);
 }
-
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
