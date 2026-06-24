@@ -2183,8 +2183,42 @@ function exportarExcel(){
 }
 
 // ═══════════════════════════════════════════
-//  INICIALIZAR (con eventos mejorados)
 // ═══════════════════════════════════════════
+//  INICIALIZAR Y CONEXIÓN A BASE DE DATOS
+// ═══════════════════════════════════════════
+
+async function sincronizarReservasDesdeLaNube() {
+  try {
+    // Hace una petición GET automática a tu endpoint de Vercel Postgres
+    const respuesta = await fetch('/api/reservas'); 
+    
+    if (!respuesta.ok) {
+      throw new Error("No se pudieron traer las reservas del servidor.");
+    }
+
+    const datosBD = await respuesta.json();
+
+    // Mapeamos los campos que vienen de la base de datos Postgres al formato de tu interfaz
+    DB.reservas = datosBD.map(res => ({
+      nombre: res.nombre,
+      telefono: res.telefono,
+      fecha: res.fecha_reserva, // Vincula la fecha de la base de datos
+      email: '', 
+      tour: '',
+      horario: '',
+      fechaReserva: res.fecha_reserva
+    }));
+
+    // Forzamos a que todos tus componentes visuales administrativos se redibujen con datos reales
+    if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
+    if (typeof actualizarHorarios === 'function') actualizarHorarios();
+    if (typeof renderCap === 'function') renderCap();
+
+  } catch (error) {
+    console.error("Error al sincronizar el panel de administración:", error);
+  }
+}
+
 function init(){
   cargar();
   aplicarImagenes();
@@ -2214,7 +2248,7 @@ function init(){
   document.querySelectorAll('.opcion-aporte').forEach(el=>el.addEventListener('click', ()=>toggleAporte(el)));
   document.getElementById('btnAceptarPadrino').addEventListener('click', registrarPadrino);
   document.getElementById('rFecha').addEventListener('change', actualizarHorarios);
-  document.getElementById('btnReservar').addEventListener('click', hacerReserva);
+  document.getElementById('btnReservar').addEventListener('click', procesarReserva); // Vinculado a procesarReserva
   document.getElementById('btnDoEmail').addEventListener('click', enviarEmail);
   document.getElementById('btnSubirImgCliente').addEventListener('click', subirImgCliente);
   document.getElementById('btnGuardarComentario').addEventListener('click', guardarComentario);
@@ -2227,7 +2261,7 @@ function init(){
   document.getElementById('btnSaveMetodosPago').addEventListener('click', guardarMetodosPago);
   document.getElementById('btnSaveTours').addEventListener('click', guardarTours);
   // Capacidad: el botón tiene onclick en el HTML, pero también podemos asignar evento
-  const capBtn = document.querySelector('[onclick="guardarCapacidadPlantas()"]');
+  const capBtn = document.querySelector('[onclick="command:guardarCapacidadPlantas()"]');
   if(capBtn) capBtn.addEventListener('click', guardarCapacidadPlantas);
 
   document.querySelectorAll('.admin-nav-btn').forEach(b=>b.addEventListener('click', ()=>mostrarSecAdmin(b.getAttribute('data-sec'))));
@@ -2257,12 +2291,12 @@ function init(){
     navAs.forEach(a=>{a.style.color=a.getAttribute('href')==='#'+cur?'var(--vc)':'';});
   });
   renderImageUploader();
+
+  // Sincroniza los datos en tiempo real de la base de datos al iniciar la app
+  sincronizarReservasDesdeLaNube();
 }
 document.addEventListener('DOMContentLoaded', init);
 
-// ═══════════════════════════════════════════
-//  SUPABASE (reservas)
-// ═══════════════════════════════════════════
 // ═══════════════════════════════════════════
 //  SUPABASE (CONEXIÓN Y SINCRONIZACIÓN DE RESERVAS)
 // ═══════════════════════════════════════════
@@ -2274,7 +2308,7 @@ if (typeof supabase !== 'undefined') {
   _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 }
 
-// Función que descarga las reservas de Supabase para listarlas en tu panel administrativo
+// Función que descarga las reservas de Supabase por si mantienes ambos sistemas en paralelo
 async function descargarReservasDesdeSupabase() {
   if (!_supabase) return;
   try {
@@ -2301,32 +2335,42 @@ async function descargarReservasDesdeSupabase() {
   }
 }
 
-// Interceptamos el cambio de pestañas del menú de administración para actualizar en vivo
+// Al cambiar de sección, si es reservas, actualiza tanto de Postgres (Vercel) como de Supabase si aplica
 const originalMostrarSecAdmin = mostrarSecAdmin;
 mostrarSecAdmin = function(s) {
   if (s === 'reservas') {
+    sincronizarReservasDesdeLaNube();
     descargarReservasDesdeSupabase();
   }
   originalMostrarSecAdmin(s);
 };
 
+// ═══════════════════════════════════════════
+//  PROCESAR RESERVA (CONEXIÓN POST AL BACKEND)
+// ═══════════════════════════════════════════
 async function procesarReserva() {
-
   const btn = document.getElementById('btnReservar');
   const msg = document.getElementById('msgReserva');
 
-  try {
+  // Obtener los valores en tiempo real del formulario antes de enviar
+  const n = document.getElementById('rNombre').value.trim();
+  const e = document.getElementById('rEmail').value.trim();
+  const t = document.getElementById('rTel').value.trim();
+  const f = document.getElementById('rFecha').value;
+  const to = document.getElementById('rTour').value;
 
-    // ═════════════════════════════
+  if (!n || !f) {
+    if (msg) msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang === 'es' ? 'Faltan datos obligatorios' : 'Required fields missing'}</span>`;
+    return;
+  }
+
+  try {
     // 1. DESACTIVAR BOTÓN
-    // ═════════════════════════════
     btn.disabled = true;
     btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
 
-    // ═════════════════════════════
-    // 2. API (Vercel)
-    // ═════════════════════════════
-    const res = await fetch('/api/reservar', {
+    // 2. PETICIÓN API A VERCEL POSTGRES
+    const res = await fetch('/api/reservas', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -2338,39 +2382,29 @@ async function procesarReserva() {
       })
     });
 
+    if (!res.ok) {
+      throw new Error("Error en la respuesta del servidor API Vercel");
+    }
+
     const data = await res.json();
 
-    alert(data.mensaje || "Reserva creada");
-
-    // ═════════════════════════════
-    // 3. SUPABASE
-    // ═════════════════════════════
+    // 3. RESPALDO EN SUPABASE (si está disponible)
     if (_supabase) {
       try {
-        await _supabase.from('reservas').insert([datosParaEnviar]);
+        await _supabase.from('reservas').insert([{
+          nombre: n,
+          telefono: t,
+          fecha: f,
+          email: e,
+          tour: to
+        }]);
       } catch (err) {
-        console.error("Error Supabase:", err);
+        console.error("Error de respaldo en Supabase:", err);
       }
     }
 
-    // ═════════════════════════════
-    // 4. LOCALSTORAGE (admin panel)
-    // ═════════════════════════════
-    let reservas = JSON.parse(localStorage.getItem('fec_reservas') || '[]');
-
-    reservas.push({
-      nombre: n,
-      telefono: t,
-      fecha_reserva: f
-    });
-
-    localStorage.setItem('fec_reservas', JSON.stringify(reservas));
-
-    // ═════════════════════════════
-    // 5. DB INTERNA (tu sistema actual)
-    // ═════════════════════════════
+    // 4. ACTUALIZAR ESTADO INTERNO DEL SISTEMA
     if (!DB.reservas) DB.reservas = [];
-
     DB.reservas.push({
       nombre: n,
       email: e,
@@ -2383,32 +2417,29 @@ async function procesarReserva() {
 
     guardar();
 
+    // Redibujar componentes con la nueva fila insertada
     if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
     if (typeof actualizarHorarios === 'function') actualizarHorarios();
     if (typeof renderCap === 'function') renderCap();
 
-    // ═════════════════════════════
-    // 6. LIMPIAR FORMULARIO
-    // ═════════════════════════════
+    // 5. LIMPIAR FORMULARIO
     document.getElementById('rNombre').value = "";
     document.getElementById('rEmail').value = "";
     document.getElementById('rTel').value = "";
     document.getElementById('rFecha').value = "";
 
-    msg.innerHTML = "";
+    if (msg) msg.innerHTML = "";
 
     alert(lang === 'es'
       ? "¡Reserva enviada con éxito a Finca El Curio!"
       : "Booking successfully sent to Finca El Curio!");
 
   } catch (err) {
-    console.error(err);
-    alert("Error general en la reserva");
+    console.error("Error crítico procesando la reserva:", err);
+    alert(lang === 'es' ? "Error general al procesar la reserva" : "General error processing booking");
   } finally {
     btn.disabled = false;
-    btn.innerText = lang === 'es'
-      ? "✅ Confirmar Reserva"
-      : "✅ Confirm Booking";
+    btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
   }
 }
 </script>
