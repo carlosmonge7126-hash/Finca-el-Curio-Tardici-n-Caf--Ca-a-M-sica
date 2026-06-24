@@ -2313,7 +2313,7 @@ mostrarSecAdmin = function(s) {
 async function procesarReserva() {
   const btn = document.getElementById('btnReservar');
   const msg = document.getElementById('msgReserva');
-  
+
   const n = document.getElementById('rNombre').value.trim();
   const e = document.getElementById('rEmail').value.trim();
   const t = document.getElementById('rTel').value.trim();
@@ -2337,19 +2337,57 @@ async function procesarReserva() {
   btn.disabled = true;
   btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
 
+  // ═════════════════════════════════════
+  // 🔥 NUEVO: API + LOCAL SYNC (lo que pediste)
+  // ═════════════════════════════════════
+  try {
+    await fetch('/api/reservar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: n,
+        telefono: t,
+        fecha: f
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+      alert(data.mensaje || "Reserva creada");
+
+      // 🔥 sincronizar con admin (localStorage)
+      let reservas = JSON.parse(localStorage.getItem('fec_reservas') || '[]');
+
+      reservas.push({
+        nombre: n,
+        telefono: t,
+        fecha_reserva: f
+      });
+
+      localStorage.setItem('fec_reservas', JSON.stringify(reservas));
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Error al guardar la reserva en API");
+  }
+
+  // ═════════════════════════════════════
+  // SUPABASE (tu sistema actual NO se rompe)
+  // ═════════════════════════════════════
   if (_supabase) {
     try {
-      const { error } = await _supabase.from('reservas').insert([datosParaEnviar]);
-      if (error) {
-        console.error("Error insertando en Supabase:", error.message);
-      }
+      await _supabase.from('reservas').insert([datosParaEnviar]);
     } catch (err) {
-      console.error("Error crítico de conexión:", err);
+      console.error("Error Supabase:", err);
     }
   }
 
-  // Guardar en el estado interno y en LocalStorage de apoyo
+  // ═════════════════════════════════════
+  // DB local (admin panel sigue funcionando)
+  // ═════════════════════════════════════
   if (!DB.reservas) DB.reservas = [];
+
   DB.reservas.push({
     nombre: n,
     email: e,
@@ -2359,22 +2397,28 @@ async function procesarReserva() {
     horario: '',
     fechaReserva: new Date().toISOString()
   });
-  
-  guardar(); 
-  
+
+  guardar();
+
   if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
   if (typeof actualizarHorarios === 'function') actualizarHorarios();
   if (typeof renderCap === 'function') renderCap();
 
-  alert(lang === 'es' ? "¡Reserva enviada con éxito a Finca El Curio!" : "Booking successfully sent to Finca El Curio!");
-  
+  alert(lang === 'es'
+    ? "¡Reserva enviada con éxito a Finca El Curio!"
+    : "Booking successfully sent to Finca El Curio!");
+
+  // limpiar campos
   document.getElementById('rNombre').value = "";
   document.getElementById('rEmail').value = "";
   document.getElementById('rTel').value = "";
   document.getElementById('rFecha').value = "";
-  
+
   btn.disabled = false;
-  btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
+  btn.innerText = lang === 'es'
+    ? "✅ Confirmar Reserva"
+    : "✅ Confirm Booking";
+
   if (msg) msg.innerHTML = "";
 }
 
