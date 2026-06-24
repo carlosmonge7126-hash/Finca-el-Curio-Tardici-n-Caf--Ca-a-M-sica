@@ -4,7 +4,8 @@ const { Client } = require('pg');
 module.exports = async function handler(req, res) {
   // Permitir CORS (para que tu HTML pueda llamar a la API)
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); 
+  
   
   // Si es una solicitud OPTIONS (preflight), responder exitosamente
   if (req.method === 'OPTIONS') {
