@@ -1,6 +1,11 @@
 {
   "name": "finca-el-curio",
   "version": "1.0.0",
+  "description": "Finca El Curio - Escazú, Costa Rica",
+  "main": "index.html",
+  "scripts": {
+    "start": "vercel dev"
+  },
   "dependencies": {
     "pg": "^8.11.0"
   }
