@@ -1,13 +1,11 @@
-// archivo: api/reservar.js
+// api/reservar.js
 const { Client } = require('pg');
 
 module.exports = async function handler(req, res) {
-  // Permitir CORS (para que tu HTML pueda llamar a la API)
+  // Permitir CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); 
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   
-  
-  // Si es una solicitud OPTIONS (preflight), responder exitosamente
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -20,31 +18,41 @@ module.exports = async function handler(req, res) {
   try {
     await client.connect();
     
-    // Si es POST, insertamos datos; si es GET, consultamos
     if (req.method === 'POST') {
-      const { nombre, mensaje } = req.body || {};
+      const { nombre, email, telefono, fecha, tour, horario } = req.body || {};
+      
+      // Validar campos requeridos
+      if (!nombre || !email || !fecha) {
+        await client.end();
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Faltan campos requeridos: nombre, email y fecha son obligatorios' 
+        });
+      }
+
       const result = await client.query(
-        'INSERT INTO visitas (nombre_visitante, mensaje) VALUES ($1, $2) RETURNING *',
-        [nombre || 'Anónimo', mensaje || 'Sin mensaje']
+        `INSERT INTO visitas (nombre_visitante, email, telefono, fecha_reserva, tour, horario) 
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [nombre, email, telefono || '', fecha, tour || '', horario || 'Pendiente']
       );
+      
       await client.end();
       return res.status(200).json({ 
         success: true, 
         data: result.rows[0],
-        mensaje: '✅ Datos guardados correctamente'
+        mensaje: '✅ Reserva guardada correctamente'
       });
     } else {
-      // GET - Consultar datos
-      const result = await client.query('SELECT * FROM visitas ORDER BY fecha DESC LIMIT 10');
+      // GET - Consultar todas las reservas
+      const result = await client.query(
+        'SELECT * FROM visitas ORDER BY fecha_reserva DESC LIMIT 100'
+      );
       await client.end();
-      return res.status(200).json({ 
-        success: true, 
-        data: result.rows,
-        mensaje: '✅ Conexión exitosa a Neon'
-      });
+      return res.status(200).json(result.rows);
     }
   } catch (error) {
     console.error('Error en API:', error);
+    await client.end().catch(() => {});
     return res.status(500).json({ 
       success: false, 
       error: '❌ Error de conexión: ' + error.message 
