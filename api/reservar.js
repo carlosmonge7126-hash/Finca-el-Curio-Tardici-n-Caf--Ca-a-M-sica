@@ -1,104 +1,52 @@
-import { sql } from '@vercel/postgres';
+// archivo: api/reservar.js
+const { Client } = require('pg');
 
-export default async function handler(req, res) {
-
-  // CORS
+module.exports = async function handler(req, res) {
+  // Permitir CORS (para que tu HTML pueda llamar a la API)
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  
+  // Si es una solicitud OPTIONS (preflight), responder exitosamente
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+
   try {
-
-    // =========================
-    // OBTENER RESERVAS
-    // =========================
-    if (req.method === 'GET') {
-
-      const { rows } = await sql`
-        SELECT
-          id,
-          nombre,
-          email,
-          telefono,
-          tour,
-          fecha_reserva,
-          fecha_creacion
-        FROM reservas
-        ORDER BY fecha_creacion DESC;
-      `;
-
-      return res.status(200).json(rows);
-    }
-
-    // =========================
-    // GUARDAR RESERVA
-    // =========================
+    await client.connect();
+    
+    // Si es POST, insertamos datos; si es GET, consultamos
     if (req.method === 'POST') {
-
-      const body =
-        typeof req.body === 'string'
-          ? JSON.parse(req.body)
-          : req.body;
-
-      const {
-        nombre,
-        email,
-        telefono,
-        fecha,
-        tour
-      } = body;
-
-      if (!nombre || !email || !fecha) {
-        return res.status(400).json({
-          ok: false,
-          mensaje: 'Faltan datos obligatorios'
-        });
-      }
-
-      const resultado = await sql`
-        INSERT INTO reservas (
-          nombre,
-          email,
-          telefono,
-          tour,
-          fecha_reserva,
-          fecha_creacion
-        )
-        VALUES (
-          ${nombre},
-          ${email},
-          ${telefono || ''},
-          ${tour || ''},
-          ${fecha},
-          NOW()
-        )
-        RETURNING *;
-      `;
-
-      return res.status(200).json({
-        ok: true,
-        mensaje: 'Reserva guardada correctamente',
-        reserva: resultado.rows[0]
+      const { nombre, mensaje } = req.body || {};
+      const result = await client.query(
+        'INSERT INTO visitas (nombre_visitante, mensaje) VALUES ($1, $2) RETURNING *',
+        [nombre || 'Anónimo', mensaje || 'Sin mensaje']
+      );
+      await client.end();
+      return res.status(200).json({ 
+        success: true, 
+        data: result.rows[0],
+        mensaje: '✅ Datos guardados correctamente'
+      });
+    } else {
+      // GET - Consultar datos
+      const result = await client.query('SELECT * FROM visitas ORDER BY fecha DESC LIMIT 10');
+      await client.end();
+      return res.status(200).json({ 
+        success: true, 
+        data: result.rows,
+        mensaje: '✅ Conexión exitosa a Neon'
       });
     }
-
-    return res.status(405).json({
-      ok: false,
-      mensaje: 'Método no permitido'
-    });
-
   } catch (error) {
-
-    console.error('ERROR API RESERVAS:', error);
-
-    return res.status(500).json({
-      ok: false,
-      mensaje: 'Error interno del servidor',
-      error: error.message
+    console.error('Error en API:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: '❌ Error de conexión: ' + error.message 
     });
   }
-}
+};
