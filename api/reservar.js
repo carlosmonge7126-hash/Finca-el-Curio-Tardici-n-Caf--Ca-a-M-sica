@@ -1,28 +1,40 @@
 import { sql } from '@vercel/postgres';
 
 export default async function handler(request, response) {
-  // Solo permitimos peticiones POST (envío de datos desde el formulario)
-  if (request.method === 'POST') {
-    
-    // Extraemos los datos que vienen de tu formulario HTML
-    const { nombre, telefono, fecha } = request.body;
 
-    try {
-      // 1. Insertar los datos en la tabla que ya tienes en Neon
-      // Usamos los nombres exactos: nombre, telefono, fecha_reserva
-      await sql`INSERT INTO reservas (nombre, telefono, fecha_reserva)
-                VALUES (${nombre}, ${telefono}, ${fecha});`;
+  if (request.method !== 'POST') {
+    return response.status(405).send('Método no permitido');
+  }
 
-      // Mensaje de éxito para la web
-      return response.status(200).json({ mensaje: "¡Reserva guardada con éxito!" });
+  try {
+    // 🔥 asegurar parseo del body
+    const body = typeof request.body === 'string'
+      ? JSON.parse(request.body)
+      : request.body;
 
-    } catch (error) {
-      // Si hay un error, lo enviamos para diagnosticarlo
-      return response.status(500).json({ error: error.message });
+    const { nombre, telefono, fecha } = body;
+
+    if (!nombre || !fecha) {
+      return response.status(400).json({
+        mensaje: "Faltan datos obligatorios"
+      });
     }
 
-  } else {
-    // Si alguien intenta acceder directamente a la URL
-    response.status(405).send('Método no permitido');
+    await sql`
+      INSERT INTO reservas (nombre, telefono, fecha_reserva)
+      VALUES (${nombre}, ${telefono}, ${fecha});
+    `;
+
+    return response.status(200).json({
+      mensaje: "¡Reserva guardada con éxito!"
+    });
+
+  } catch (error) {
+    console.error("Error API reservas:", error);
+
+    return response.status(500).json({
+      mensaje: "Error al guardar la reserva",
+      error: error.message
+    });
   }
 }
