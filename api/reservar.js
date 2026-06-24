@@ -1,52 +1,104 @@
 import { sql } from '@vercel/postgres';
 
-export default async function handler(request, response) {
-  // Configurar cabeceras CORS por si tu frontend está en otro dominio
-  response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+export default async function handler(req, res) {
 
-  if (request.method === 'OPTIONS') {
-    return response.status(200).end();
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  // ─── CASO GET: LEER RESERVAS DE LA BASE DE DATOS ───
-  if (request.method === 'GET') {
-    try {
-      // Modifica el SELECT según las columnas reales de tu tabla
+  try {
+
+    // =========================
+    // OBTENER RESERVAS
+    // =========================
+    if (req.method === 'GET') {
+
       const { rows } = await sql`
-        SELECT nombre, telefono, fecha_reserva 
-        FROM reservas 
-        ORDER BY fecha_reserva DESC;
+        SELECT
+          id,
+          nombre,
+          email,
+          telefono,
+          tour,
+          fecha_reserva,
+          fecha_creacion
+        FROM reservas
+        ORDER BY fecha_creacion DESC;
       `;
-      return response.status(200).json(rows);
-    } catch (error) {
-      console.error("Error al leer reservas:", error);
-      return response.status(500).json({ mensaje: "Error al obtener reservas", error: error.message });
+
+      return res.status(200).json(rows);
     }
-  }
 
-  // ─── CASO POST: GUARDAR RESERVA (Tu código corregido) ───
-  if (request.method === 'POST') {
-    try {
-      const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
-      const { nombre, telefono, fecha } = body;
+    // =========================
+    // GUARDAR RESERVA
+    // =========================
+    if (req.method === 'POST') {
 
-      if (!nombre || !fecha) {
-        return response.status(400).json({ mensaje: "Faltan datos obligatorios" });
+      const body =
+        typeof req.body === 'string'
+          ? JSON.parse(req.body)
+          : req.body;
+
+      const {
+        nombre,
+        email,
+        telefono,
+        fecha,
+        tour
+      } = body;
+
+      if (!nombre || !email || !fecha) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: 'Faltan datos obligatorios'
+        });
       }
 
-      await sql`
-        INSERT INTO reservas (nombre, telefono, fecha_reserva)
-        VALUES (${nombre}, ${telefono}, ${fecha});
+      const resultado = await sql`
+        INSERT INTO reservas (
+          nombre,
+          email,
+          telefono,
+          tour,
+          fecha_reserva,
+          fecha_creacion
+        )
+        VALUES (
+          ${nombre},
+          ${email},
+          ${telefono || ''},
+          ${tour || ''},
+          ${fecha},
+          NOW()
+        )
+        RETURNING *;
       `;
 
-      return response.status(200).json({ mensaje: "¡Reserva guardada con éxito!" });
-    } catch (error) {
-      console.error("Error API reservas:", error);
-      return response.status(500).json({ mensaje: "Error al guardar la reserva", error: error.message });
+      return res.status(200).json({
+        ok: true,
+        mensaje: 'Reserva guardada correctamente',
+        reserva: resultado.rows[0]
+      });
     }
-  }
 
-  return response.status(405).send('Método no permitido');
+    return res.status(405).json({
+      ok: false,
+      mensaje: 'Método no permitido'
+    });
+
+  } catch (error) {
+
+    console.error('ERROR API RESERVAS:', error);
+
+    return res.status(500).json({
+      ok: false,
+      mensaje: 'Error interno del servidor',
+      error: error.message
+    });
+  }
 }
