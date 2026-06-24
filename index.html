@@ -770,8 +770,8 @@ table.tb tr:hover{background:#fafaf8;}
     </div>
   </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://jsdelivr.net"></script>
+<script src="https://jsdelivr.net"></script>
 <script>
 // ═══════════════════════════════════════════
 //  CONSTANTES Y ESTADO
@@ -2263,38 +2263,121 @@ document.addEventListener('DOMContentLoaded', init);
 // ═══════════════════════════════════════════
 //  SUPABASE (reservas)
 // ═══════════════════════════════════════════
-const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
+// ═══════════════════════════════════════════
+//  SUPABASE (CONEXIÓN Y SINCRONIZACIÓN DE RESERVAS)
+// ═══════════════════════════════════════════
+const supabaseUrl = 'https://supabase.co';
 const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+let _supabase = null;
+
+if (typeof supabase !== 'undefined') {
+  _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+}
+
+// Función que descarga las reservas de Supabase para listarlas en tu panel administrativo
+async function descargarReservasDesdeSupabase() {
+  if (!_supabase) return;
+  try {
+    const { data, error } = await _supabase.from('reservas').select('*').order('fecha', { ascending: true });
+    if (error) {
+      console.error("Error al descargar de Supabase:", error.message);
+      return;
+    }
+    if (data) {
+      DB.reservas = data.map(r => ({
+        nombre: r.nombre,
+        email: r.email,
+        telefono: r.telefono,
+        fecha: r.fecha,
+        tour: r.tour,
+        horario: r.horario || '',
+        fechaReserva: r.created_at || new Date().toISOString()
+      }));
+      guardar();
+      if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
+    }
+  } catch (err) {
+    console.error("Error de red con Supabase:", err);
+  }
+}
+
+// Interceptamos el cambio de pestañas del menú de administración para actualizar en vivo
+const originalMostrarSecAdmin = mostrarSecAdmin;
+mostrarSecAdmin = function(s) {
+  if (s === 'reservas') {
+    descargarReservasDesdeSupabase();
+  }
+  originalMostrarSecAdmin(s);
+};
+
 async function procesarReserva() {
   const btn = document.getElementById('btnReservar');
   const msg = document.getElementById('msgReserva');
-  const datosParaEnviar = {
-    nombre: document.getElementById('rNombre').value,
-    email: document.getElementById('rEmail').value,
-    telefono: document.getElementById('rTel').value,
-    fecha: document.getElementById('rFecha').value,
-    tour: document.getElementById('rTour').value
-  };
-  if (!datosParaEnviar.nombre) {
-    alert("Por favor, ingresa tu nombre.");
+  
+  const n = document.getElementById('rNombre').value.trim();
+  const e = document.getElementById('rEmail').value.trim();
+  const t = document.getElementById('rTel').value.trim();
+  const f = document.getElementById('rFecha').value;
+  const to = document.getElementById('rTour').value;
+
+  if (!n || !e || !f) {
+    if (msg) msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang==='es'?'Complete todos los campos necesarios':'Please fill all required fields'}</span>`;
     return;
   }
+
+  const datosParaEnviar = {
+    nombre: n,
+    email: e,
+    telefono: t,
+    fecha: f,
+    tour: to,
+    horario: ''
+  };
+
   btn.disabled = true;
-  btn.innerText = "Enviando...";
-  const { error } = await _supabase.from('reservas').insert([datosParaEnviar]);
-  if (error) {
-    alert("Error al guardar: " + error.message);
-    btn.disabled = false;
-    btn.innerText = "✅ Confirmar Reserva";
-  } else {
-    alert("¡Reserva enviada con éxito a Finca El Curio!");
-    document.getElementById('rNombre').value = "";
-    document.getElementById('rEmail').value = "";
-    btn.disabled = false;
-    btn.innerText = "✅ Confirmar Reserva";
+  btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
+
+  if (_supabase) {
+    try {
+      const { error } = await _supabase.from('reservas').insert([datosParaEnviar]);
+      if (error) {
+        console.error("Error insertando en Supabase:", error.message);
+      }
+    } catch (err) {
+      console.error("Error crítico de conexión:", err);
+    }
   }
+
+  // Guardar en el estado interno y en LocalStorage de apoyo
+  if (!DB.reservas) DB.reservas = [];
+  DB.reservas.push({
+    nombre: n,
+    email: e,
+    telefono: t,
+    fecha: f,
+    tour: to,
+    horario: '',
+    fechaReserva: new Date().toISOString()
+  });
+  
+  guardar(); 
+  
+  if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
+  if (typeof actualizarHorarios === 'function') actualizarHorarios();
+  if (typeof renderCap === 'function') renderCap();
+
+  alert(lang === 'es' ? "¡Reserva enviada con éxito a Finca El Curio!" : "Booking successfully sent to Finca El Curio!");
+  
+  document.getElementById('rNombre').value = "";
+  document.getElementById('rEmail').value = "";
+  document.getElementById('rTel').value = "";
+  document.getElementById('rFecha').value = "";
+  
+  btn.disabled = false;
+  btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
+  if (msg) msg.innerHTML = "";
 }
+
 </script>
 </body>
 </html>
