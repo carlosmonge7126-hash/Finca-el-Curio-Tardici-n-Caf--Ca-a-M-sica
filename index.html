@@ -2190,7 +2190,7 @@ function exportarExcel(){
 async function sincronizarReservasDesdeLaNube() {
   try {
     // Hace una petición GET automática a tu endpoint de Vercel Postgres
-    const respuesta = await fetch('/api/reservas'); 
+    const respuesta = awaitfetch('/api/reservar'); 
     
     if (!respuesta.ok) {
       throw new Error("No se pudieron traer las reservas del servidor.");
