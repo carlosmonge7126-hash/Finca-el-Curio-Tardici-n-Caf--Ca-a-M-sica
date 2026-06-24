@@ -2311,117 +2311,106 @@ mostrarSecAdmin = function(s) {
 };
 
 async function procesarReserva() {
+
   const btn = document.getElementById('btnReservar');
   const msg = document.getElementById('msgReserva');
 
-  const n = document.getElementById('rNombre').value.trim();
-  const e = document.getElementById('rEmail').value.trim();
-  const t = document.getElementById('rTel').value.trim();
-  const f = document.getElementById('rFecha').value;
-  const to = document.getElementById('rTour').value;
-
-  if (!n || !e || !f) {
-    if (msg) msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang==='es'?'Complete todos los campos necesarios':'Please fill all required fields'}</span>`;
-    return;
-  }
-
-  const datosParaEnviar = {
-    nombre: n,
-    email: e,
-    telefono: t,
-    fecha: f,
-    tour: to,
-    horario: ''
-  };
-
-  btn.disabled = true;
-  btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
-
-  // ═════════════════════════════════════
-  // 🔥 NUEVO: API + LOCAL SYNC (lo que pediste)
-  // ═════════════════════════════════════
   try {
-    await fetch('/api/reservar', {
+
+    // ═════════════════════════════
+    // 1. DESACTIVAR BOTÓN
+    // ═════════════════════════════
+    btn.disabled = true;
+    btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
+
+    // ═════════════════════════════
+    // 2. API (Vercel)
+    // ═════════════════════════════
+    const res = await fetch('/api/reservar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         nombre: n,
         telefono: t,
         fecha: f
       })
-    })
-    .then(res => res.json())
-    .then(data => {
-
-      alert(data.mensaje || "Reserva creada");
-
-      // 🔥 sincronizar con admin (localStorage)
-      let reservas = JSON.parse(localStorage.getItem('fec_reservas') || '[]');
-
-      reservas.push({
-        nombre: n,
-        telefono: t,
-        fecha_reserva: f
-      });
-
-      localStorage.setItem('fec_reservas', JSON.stringify(reservas));
     });
+
+    const data = await res.json();
+
+    alert(data.mensaje || "Reserva creada");
+
+    // ═════════════════════════════
+    // 3. SUPABASE
+    // ═════════════════════════════
+    if (_supabase) {
+      try {
+        await _supabase.from('reservas').insert([datosParaEnviar]);
+      } catch (err) {
+        console.error("Error Supabase:", err);
+      }
+    }
+
+    // ═════════════════════════════
+    // 4. LOCALSTORAGE (admin panel)
+    // ═════════════════════════════
+    let reservas = JSON.parse(localStorage.getItem('fec_reservas') || '[]');
+
+    reservas.push({
+      nombre: n,
+      telefono: t,
+      fecha_reserva: f
+    });
+
+    localStorage.setItem('fec_reservas', JSON.stringify(reservas));
+
+    // ═════════════════════════════
+    // 5. DB INTERNA (tu sistema actual)
+    // ═════════════════════════════
+    if (!DB.reservas) DB.reservas = [];
+
+    DB.reservas.push({
+      nombre: n,
+      email: e,
+      telefono: t,
+      fecha: f,
+      tour: to,
+      horario: '',
+      fechaReserva: new Date().toISOString()
+    });
+
+    guardar();
+
+    if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
+    if (typeof actualizarHorarios === 'function') actualizarHorarios();
+    if (typeof renderCap === 'function') renderCap();
+
+    // ═════════════════════════════
+    // 6. LIMPIAR FORMULARIO
+    // ═════════════════════════════
+    document.getElementById('rNombre').value = "";
+    document.getElementById('rEmail').value = "";
+    document.getElementById('rTel').value = "";
+    document.getElementById('rFecha').value = "";
+
+    msg.innerHTML = "";
+
+    alert(lang === 'es'
+      ? "¡Reserva enviada con éxito a Finca El Curio!"
+      : "Booking successfully sent to Finca El Curio!");
 
   } catch (err) {
     console.error(err);
-    alert("Error al guardar la reserva en API");
+    alert("Error general en la reserva");
+  } finally {
+    btn.disabled = false;
+    btn.innerText = lang === 'es'
+      ? "✅ Confirmar Reserva"
+      : "✅ Confirm Booking";
   }
-
-  // ═════════════════════════════════════
-  // SUPABASE (tu sistema actual NO se rompe)
-  // ═════════════════════════════════════
-  if (_supabase) {
-    try {
-      await _supabase.from('reservas').insert([datosParaEnviar]);
-    } catch (err) {
-      console.error("Error Supabase:", err);
-    }
-  }
-
-  // ═════════════════════════════════════
-  // DB local (admin panel sigue funcionando)
-  // ═════════════════════════════════════
-  if (!DB.reservas) DB.reservas = [];
-
-  DB.reservas.push({
-    nombre: n,
-    email: e,
-    telefono: t,
-    fecha: f,
-    tour: to,
-    horario: '',
-    fechaReserva: new Date().toISOString()
-  });
-
-  guardar();
-
-  if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
-  if (typeof actualizarHorarios === 'function') actualizarHorarios();
-  if (typeof renderCap === 'function') renderCap();
-
-  alert(lang === 'es'
-    ? "¡Reserva enviada con éxito a Finca El Curio!"
-    : "Booking successfully sent to Finca El Curio!");
-
-  // limpiar campos
-  document.getElementById('rNombre').value = "";
-  document.getElementById('rEmail').value = "";
-  document.getElementById('rTel').value = "";
-  document.getElementById('rFecha').value = "";
-
-  btn.disabled = false;
-  btn.innerText = lang === 'es'
-    ? "✅ Confirmar Reserva"
-    : "✅ Confirm Booking";
-
-  if (msg) msg.innerHTML = "";
 }
-
 </script>
 </body>
 </html>
