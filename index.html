@@ -2187,39 +2187,61 @@ function exportarExcel(){
 //  INICIALIZAR Y CONEXIÓN A BASE DE DATOS
 // ═══════════════════════════════════════════
 
+// ═══════════════════════════════════════════
+//  SINCRONIZAR RESERVAS DESDE VERCEL POSTGRES
+// ═══════════════════════════════════════════
 async function sincronizarReservasDesdeLaNube() {
   try {
-    // Hace una petición GET automática a tu endpoint de Vercel Postgres
-    const respuesta = await fetch('/api/reservar')
-    
+
+    const respuesta = await fetch('/api/reservar');
+
     if (!respuesta.ok) {
-      throw new Error("No se pudieron traer las reservas del servidor.");
+      throw new Error('No se pudieron traer las reservas del servidor.');
     }
 
     const datosBD = await respuesta.json();
 
-    // Mapeamos los campos que vienen de la base de datos Postgres al formato de tu interfaz
+    if (!Array.isArray(datosBD)) {
+      console.error('La API no devolvió un arreglo:', datosBD);
+      return;
+    }
+
     DB.reservas = datosBD.map(res => ({
-      nombre: res.nombre,
-      telefono: res.telefono,
-      fecha: res.fecha_reserva, // Vincula la fecha de la base de datos
-      email: '', 
-      tour: '',
-      horario: '',
-      fechaReserva: res.fecha_reserva
+      nombre: res.nombre || '',
+      email: res.email || '',
+      telefono: res.telefono || '',
+      fecha: res.fecha_reserva || '',
+      tour: res.tour || '',
+      horario: res.horario || '',
+      fechaReserva: res.fecha_creacion || res.fecha_reserva || ''
     }));
 
-    // Forzamos a que todos tus componentes visuales administrativos se redibujen con datos reales
-    if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
-    if (typeof actualizarHorarios === 'function') actualizarHorarios();
-    if (typeof renderCap === 'function') renderCap();
+    guardar();
+
+    if (typeof renderReservasAdmin === 'function') {
+      renderReservasAdmin();
+    }
+
+    if (typeof actualizarHorarios === 'function') {
+      actualizarHorarios();
+    }
+
+    if (typeof renderCap === 'function') {
+      renderCap();
+    }
+
+    console.log(`✅ ${DB.reservas.length} reservas sincronizadas`);
 
   } catch (error) {
-    console.error("Error al sincronizar el panel de administración:", error);
+    console.error('Error al sincronizar el panel de administración:', error);
   }
 }
 
-function init(){
+// ═══════════════════════════════════════════
+//  INICIALIZACIÓN
+// ═══════════════════════════════════════════
+async function init(){
+
   cargar();
   aplicarImagenes();
   aplicarVisibilidad();
@@ -2227,221 +2249,131 @@ function init(){
   renderCap();
   renderTours();
   actualizarHorarios();
+
   const hoyISO = new Date().toISOString().split('T')[0];
+
   const rFechaEl = document.getElementById('rFecha');
-  if(rFechaEl) rFechaEl.min = hoyISO;
+  if (rFechaEl) rFechaEl.min = hoyISO;
+
   const selFechaAdminEl = document.getElementById('selFechaAdmin');
-  if(selFechaAdminEl) selFechaAdminEl.min = hoyISO;
+  if (selFechaAdminEl) selFechaAdminEl.min = hoyISO;
 
-  // Eventos de botones usando addEventListener para mayor robustez
-  document.getElementById('btnReg').addEventListener('click', ()=>abrirModal('moReg'));
-  document.getElementById('btnLogin').addEventListener('click', ()=>abrirModal('moLogin'));
-  document.getElementById('btnLogoutCliente').addEventListener('click', logoutCliente);
-  document.getElementById('btnDoReg').addEventListener('click', registrarCliente);
-  document.getElementById('btnDoLogin').addEventListener('click', loginCliente);
-  document.getElementById('btnAbrirRecup').addEventListener('click', ()=>{cerrarModal('moLogin'); abrirModal('moRecup');});
-  document.getElementById('btnDoRecup').addEventListener('click', enviarRecuperacion);
-  document.getElementById('btnDoReset').addEventListener('click', guardarNuevaPass);
-  document.getElementById('btnGuardarTel').addEventListener('click', guardarTelCliente);
-  document.getElementById('btnMiCuenta').addEventListener('click', (e)=>{e.preventDefault(); abrirMiCuenta();});
-  document.getElementById('btnGuardarCuenta').addEventListener('click', guardarCuenta);
-  document.querySelectorAll('.opcion-aporte').forEach(el=>el.addEventListener('click', ()=>toggleAporte(el)));
-  document.getElementById('btnAceptarPadrino').addEventListener('click', registrarPadrino);
-  document.getElementById('rFecha').addEventListener('change', actualizarHorarios);
-  document.getElementById('btnReservar').addEventListener('click', procesarReserva); // Vinculado a procesarReserva
-  document.getElementById('btnDoEmail').addEventListener('click', enviarEmail);
-  document.getElementById('btnSubirImgCliente').addEventListener('click', subirImgCliente);
-  document.getElementById('btnGuardarComentario').addEventListener('click', guardarComentario);
-  document.getElementById('btnDoAdminLogin').addEventListener('click', loginAdmin);
-  document.getElementById('btnAdminLogout').addEventListener('click', logoutAdmin);
-  document.getElementById('btnGuardarPlanta').addEventListener('click', guardarPlantaAdmin);
-  document.getElementById('btnExcel').addEventListener('click', exportarExcel);
-  document.getElementById('btnSaveConfig').addEventListener('click', guardarConfig);
-  document.getElementById('btnSaveBancos').addEventListener('click', guardarBancos);
-  document.getElementById('btnSaveMetodosPago').addEventListener('click', guardarMetodosPago);
-  document.getElementById('btnSaveTours').addEventListener('click', guardarTours);
-  // Capacidad: el botón tiene onclick en el HTML, pero también podemos asignar evento
-  const capBtn = document.querySelector('[onclick="command:guardarCapacidadPlantas()"]');
-  if(capBtn) capBtn.addEventListener('click', guardarCapacidadPlantas);
+  // Eventos principales
+  document.getElementById('btnReg')?.addEventListener('click', ()=>abrirModal('moReg'));
+  document.getElementById('btnLogin')?.addEventListener('click', ()=>abrirModal('moLogin'));
+  document.getElementById('btnLogoutCliente')?.addEventListener('click', logoutCliente);
+  document.getElementById('btnDoReg')?.addEventListener('click', registrarCliente);
+  document.getElementById('btnDoLogin')?.addEventListener('click', loginCliente);
+  document.getElementById('btnAbrirRecup')?.addEventListener('click', ()=>{
+    cerrarModal('moLogin');
+    abrirModal('moRecup');
+  });
 
-  document.querySelectorAll('.admin-nav-btn').forEach(b=>b.addEventListener('click', ()=>mostrarSecAdmin(b.getAttribute('data-sec'))));
-  document.querySelectorAll('.filtro-btn').forEach(b=>b.addEventListener('click', ()=>{
-    document.querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('activo'));
-    b.classList.add('activo'); filtroClientes=b.getAttribute('data-fil'); renderClientes();
-  }));
+  document.getElementById('btnDoRecup')?.addEventListener('click', enviarRecuperacion);
+  document.getElementById('btnDoReset')?.addEventListener('click', guardarNuevaPass);
+  document.getElementById('btnGuardarTel')?.addEventListener('click', guardarTelCliente);
+
+  document.getElementById('btnMiCuenta')?.addEventListener('click', (e)=>{
+    e.preventDefault();
+    abrirMiCuenta();
+  });
+
+  document.getElementById('btnGuardarCuenta')?.addEventListener('click', guardarCuenta);
+
+  document.querySelectorAll('.opcion-aporte').forEach(el=>{
+    el.addEventListener('click', ()=>toggleAporte(el));
+  });
+
+  document.getElementById('btnAceptarPadrino')?.addEventListener('click', registrarPadrino);
+  document.getElementById('rFecha')?.addEventListener('change', actualizarHorarios);
+  document.getElementById('btnReservar')?.addEventListener('click', procesarReserva);
+  document.getElementById('btnDoEmail')?.addEventListener('click', enviarEmail);
+  document.getElementById('btnSubirImgCliente')?.addEventListener('click', subirImgCliente);
+  document.getElementById('btnGuardarComentario')?.addEventListener('click', guardarComentario);
+
+  document.getElementById('btnDoAdminLogin')?.addEventListener('click', loginAdmin);
+  document.getElementById('btnAdminLogout')?.addEventListener('click', logoutAdmin);
+  document.getElementById('btnGuardarPlanta')?.addEventListener('click', guardarPlantaAdmin);
+
+  document.getElementById('btnExcel')?.addEventListener('click', exportarExcel);
+  document.getElementById('btnSaveConfig')?.addEventListener('click', guardarConfig);
+  document.getElementById('btnSaveBancos')?.addEventListener('click', guardarBancos);
+  document.getElementById('btnSaveMetodosPago')?.addEventListener('click', guardarMetodosPago);
+  document.getElementById('btnSaveTours')?.addEventListener('click', guardarTours);
+
+  // Capacidad
+  const capBtn = document.querySelector('[onclick*="guardarCapacidadPlantas"]');
+  if (capBtn) {
+    capBtn.addEventListener('click', guardarCapacidadPlantas);
+  }
+
+  document.querySelectorAll('.admin-nav-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      mostrarSecAdmin(b.getAttribute('data-sec'));
+    });
+  });
+
+  document.querySelectorAll('.filtro-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('activo'));
+      b.classList.add('activo');
+      filtroClientes = b.getAttribute('data-fil');
+      renderClientes();
+    });
+  });
+
   document.addEventListener('change', e=>{
-    if(e.target.id==='selReservaAdmin'){
+
+    if (e.target.id === 'selReservaAdmin') {
       const fSel = document.getElementById('selFechaAdmin');
-      if(fSel) fSel.value = '';
+      if (fSel) fSel.value = '';
       poblarSelHorarioAdmin();
     }
-    if(e.target.id==='selFechaAdmin') poblarSelHorarioAdmin();
+
+    if (e.target.id === 'selFechaAdmin') {
+      poblarSelHorarioAdmin();
+    }
   });
 
   const savedLang = localStorage.getItem('fec_lang') || 'es';
-  if(savedLang !== 'es') setLang(savedLang);
+
+  if (savedLang !== 'es') {
+    setLang(savedLang);
+  }
+
   renderTestimonios();
+
   const btnT = document.getElementById('btnAbrirTestimonio');
-  if(btnT) btnT.style.display = 'inline-flex';
-  const secs=document.querySelectorAll('section[id],div[id]');
-  const navAs=document.querySelectorAll('nav a');
+  if (btnT) btnT.style.display = 'inline-flex';
+
+  const secs = document.querySelectorAll('section[id],div[id]');
+  const navAs = document.querySelectorAll('nav a');
+
   window.addEventListener('scroll', ()=>{
-    let cur='';
-    secs.forEach(s=>{if(window.scrollY>=s.offsetTop-120) cur=s.id;});
-    navAs.forEach(a=>{a.style.color=a.getAttribute('href')==='#'+cur?'var(--vc)':'';});
+    let cur = '';
+
+    secs.forEach(s=>{
+      if (window.scrollY >= s.offsetTop - 120) {
+        cur = s.id;
+      }
+    });
+
+    navAs.forEach(a=>{
+      a.style.color =
+        a.getAttribute('href') === '#' + cur
+          ? 'var(--vc)'
+          : '';
+    });
   });
+
   renderImageUploader();
 
-  // Sincroniza los datos en tiempo real de la base de datos al iniciar la app
-  sincronizarReservasDesdeLaNube();
+  // IMPORTANTE:
+  // Cargar reservas reales desde Vercel al iniciar
+  await sincronizarReservasDesdeLaNube();
 }
+
 document.addEventListener('DOMContentLoaded', init);
-
-// ═══════════════════════════════════════════
-//  SUPABASE (CONEXIÓN Y SINCRONIZACIÓN DE RESERVAS)
-// ═══════════════════════════════════════════
-const supabaseUrl = 'https://zfcrhljjfleuzxecykvw.supabase.co';
-const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
-let _supabase = null;
-
-if (typeof supabase !== 'undefined') {
-  _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-}
-
-// Función que descarga las reservas de Supabase por si mantienes ambos sistemas en paralelo
-async function descargarReservasDesdeSupabase() {
-  if (!_supabase) return;
-  try {
-    const { data, error } = await _supabase.from('reservas').select('*').order('fecha', { ascending: true });
-    if (error) {
-      console.error("Error al descargar de Supabase:", error.message);
-      return;
-    }
-    if (data) {
-      DB.reservas = data.map(r => ({
-        nombre: r.nombre,
-        email: r.email,
-        telefono: r.telefono,
-        fecha: r.fecha,
-        tour: r.tour,
-        horario: r.horario || '',
-        fechaReserva: r.created_at || new Date().toISOString()
-      }));
-      guardar();
-      if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
-    }
-  } catch (err) {
-    console.error("Error de red con Supabase:", err);
-  }
-}
-
-// Al cambiar de sección, si es reservas, actualiza tanto de Postgres (Vercel) como de Supabase si aplica
-const originalMostrarSecAdmin = mostrarSecAdmin;
-mostrarSecAdmin = function(s) {
-  if (s === 'reservas') {
-    sincronizarReservasDesdeLaNube();
-    descargarReservasDesdeSupabase();
-  }
-  originalMostrarSecAdmin(s);
-};
-
-// ═══════════════════════════════════════════
-//  PROCESAR RESERVA (CONEXIÓN POST AL BACKEND)
-// ═══════════════════════════════════════════
-async function procesarReserva() {
-  const btn = document.getElementById('btnReservar');
-  const msg = document.getElementById('msgReserva');
-
-  // Obtener los valores en tiempo real del formulario antes de enviar
-  const n = document.getElementById('rNombre').value.trim();
-  const e = document.getElementById('rEmail').value.trim();
-  const t = document.getElementById('rTel').value.trim();
-  const f = document.getElementById('rFecha').value;
-  const to = document.getElementById('rTour').value;
-
-  if (!n || !f) {
-    if (msg) msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang === 'es' ? 'Faltan datos obligatorios' : 'Required fields missing'}</span>`;
-    return;
-  }
-
-  try {
-    // 1. DESACTIVAR BOTÓN
-    btn.disabled = true;
-    btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
-
-    // 2. PETICIÓN API A VERCEL POSTGRES
-    const res = await fetch('/api/reservar', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        nombre: n,
-        telefono: t,
-        fecha: f
-      })
-    });
-
-    if (!res.ok) {
-      throw new Error("Error en la respuesta del servidor API Vercel");
-    }
-
-    const data = await res.json();
-
-    // 3. RESPALDO EN SUPABASE (si está disponible)
-    if (_supabase) {
-      try {
-        await _supabase.from('reservas').insert([{
-          nombre: n,
-          telefono: t,
-          fecha: f,
-          email: e,
-          tour: to
-        }]);
-      } catch (err) {
-        console.error("Error de respaldo en Supabase:", err);
-      }
-    }
-
-    // 4. ACTUALIZAR ESTADO INTERNO DEL SISTEMA
-    if (!DB.reservas) DB.reservas = [];
-    DB.reservas.push({
-      nombre: n,
-      email: e,
-      telefono: t,
-      fecha: f,
-      tour: to,
-      horario: '',
-      fechaReserva: new Date().toISOString()
-    });
-
-    guardar();
-
-    // Redibujar componentes con la nueva fila insertada
-    if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
-    if (typeof actualizarHorarios === 'function') actualizarHorarios();
-    if (typeof renderCap === 'function') renderCap();
-
-    // 5. LIMPIAR FORMULARIO
-    document.getElementById('rNombre').value = "";
-    document.getElementById('rEmail').value = "";
-    document.getElementById('rTel').value = "";
-    document.getElementById('rFecha').value = "";
-
-    if (msg) msg.innerHTML = "";
-
-    alert(lang === 'es'
-      ? "¡Reserva enviada con éxito a Finca El Curio!"
-      : "Booking successfully sent to Finca El Curio!");
-
-  } catch (err) {
-    console.error("Error crítico procesando la reserva:", err);
-    alert(lang === 'es' ? "Error general al procesar la reserva" : "General error processing booking");
-  } finally {
-    btn.disabled = false;
-    btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
-  }
-}
 </script>
 </body>
 </html>
