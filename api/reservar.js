@@ -21,12 +21,11 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST') {
       const { nombre, email, telefono, fecha, tour, horario } = req.body || {};
       
-      // Validar campos requeridos
       if (!nombre || !email || !fecha) {
         await client.end();
         return res.status(400).json({ 
           success: false, 
-          error: 'Faltan campos requeridos: nombre, email y fecha son obligatorios' 
+          error: 'Faltan campos requeridos' 
         });
       }
 
@@ -43,7 +42,6 @@ module.exports = async function handler(req, res) {
         mensaje: '✅ Reserva guardada correctamente'
       });
     } else {
-      // GET - Consultar todas las reservas
       const result = await client.query(
         'SELECT * FROM visitas ORDER BY fecha_reserva DESC LIMIT 100'
       );
