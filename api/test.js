@@ -7,3 +7,4 @@ module.exports = function(req, res) {
     carpeta: "api existe y funciona"
   });
 };
+/---"Actualizo test.js para diagnóstico"---/
