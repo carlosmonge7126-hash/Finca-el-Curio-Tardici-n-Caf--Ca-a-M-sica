@@ -777,12 +777,14 @@ table.tb tr:hover{background:#fafaf8;}
 <script type="module">
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-  const supabase = createClient(
-    "TU_SUPABASE_URL",
-    "TU_SUPABASE_ANON_KEY"
-  );
+  const SUPABASE_URL = 'https://zfcrhljjfleuzxecykwv.supabase.co';
+
+  const SUPABASE_ANON_KEY = 'sb_publisable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-Z3';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   window.supabase = supabase;
+</script>
 </script>
 <script>
   // ═══════════════════════════════════════════
