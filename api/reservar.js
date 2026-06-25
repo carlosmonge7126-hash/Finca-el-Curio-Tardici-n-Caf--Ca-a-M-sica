@@ -1,3 +1,7 @@
+// Agregar al principio de POST
+if (!process.env.DATABASE_URL) {
+  return res.status(500).json({ success: false, error: 'DATABASE_URL no configurada' });
+}
 // serverless/reservar.js
 const { Client } = require('pg');
 
