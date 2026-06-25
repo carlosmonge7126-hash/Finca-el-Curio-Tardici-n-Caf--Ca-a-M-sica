@@ -2269,8 +2269,9 @@ document.addEventListener('DOMContentLoaded', init);
 // ═══════════════════════════════════════════
 //  SUPABASE (CONEXIÓN Y DESCARGA EN VIVO)
 // ═══════════════════════════════════════════
-const supabaseUrl = 'https://supabase.co';
-const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+const supabaseUrl = 'https://TU-PROJECT-ID.supabase.co';
+const supabaseKey = 'TU-ANON-KEY-AQUÍ'; 
 let _supabase = null;
 
 if (typeof supabase !== 'undefined') {
@@ -2327,64 +2328,75 @@ async function procesarReserva() {
   const to = document.getElementById('rTour').value;
 
   if (!n || !e || !f) {
-    if (msg) msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang==='es'?'Complete todos los campos necesarios':'Please fill all required fields'}</span>`;
+    showMsg('msgReserva', lang==='es'?'Complete todos los campos':'Fill all fields', 'err');
     return;
   }
 
-  const datosParaEnviar = {
-    nombre: n,
-    email: e,
-    telefono: t,
-    fecha: f,
-    tour: to,
-    horario: ''
-  };
-
-  btn.disabled = true;
-  btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
-
-  let guardadoEnNube = false;
-  if (_supabase) {
-    try {
-      const { error } = await _supabase.from('reservas').insert([datosParaEnviar]);
-      if (error) {
-        console.error("Error insertando en Supabase:", error.message);
-      } else {
-        guardadoEnNube = true;
-      }
-    } catch (err) {
-      console.error("Error crítico de conexión:", err);
-    }
-  }
-
-  // Guardar localmente para actualización inmediata de la interfaz
-  if (!DB.reservas) DB.reservas = [];
-  DB.reservas.push({
+  const datos = {
     nombre: n,
     email: e,
     telefono: t,
     fecha: f,
     tour: to,
     horario: '',
-    fechaReserva: new Date().toISOString()
-  });
-  
-  guardar(); 
-  
+    created_at: new Date().toISOString()
+  };
+
+  btn.disabled = true;
+  btn.textContent = lang === 'es' ? "Enviando..." : "Sending...";
+
+  // Guardar en Supabase (nube)
+  if (_supabase) {
+    try {
+      const { error } = await _supabase.from('reservas').insert([datos]);
+      if (error) console.error("Supabase error:", error);
+    } catch (err) {
+      console.error("Error Supabase:", err);
+    }
+  }
+
+  // Guardar localmente también
+  if (!DB.reservas) DB.reservas = [];
+  DB.reservas.push(datos);
+  guardar();
+
+  showMsg('msgReserva', lang==='es'?'✅ Reserva enviada correctamente':'✅ Booking sent successfully', 'ok');
+
+  // Limpiar formulario
+  document.getElementById('rNombre').value = '';
+  document.getElementById('rEmail').value = '';
+  document.getElementById('rTel').value = '';
+  document.getElementById('rFecha').value = '';
+
+  btn.disabled = false;
+  btn.textContent = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
+
+  // Refrescar admin si está abierto
+  if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
+}  
+  // Actualizar vistas
   if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
   if (typeof actualizarHorarios === 'function') actualizarHorarios();
   if (typeof renderCap === 'function') renderCap();
 
-  alert(lang === 'es' ? "¡Reserva enviada con éxito a Finca El Curio!" : "Booking successfully sent to Finca El Curio!");
-  
+  // Mensaje bonito en lugar de alert
+  showMsg('msgReserva', 
+    lang === 'es' 
+      ? "¡Reserva enviada con éxito a Finca El Curio! 🌿" 
+      : "Booking successfully sent to Finca El Curio! 🌿", 
+    'ok', 
+    6000
+  );
+
+  // Limpiar formulario
   document.getElementById('rNombre').value = "";
   document.getElementById('rEmail').value = "";
   document.getElementById('rTel').value = "";
   document.getElementById('rFecha').value = "";
-  
+
+  // Reactivar botón
   btn.disabled = false;
   btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
-  if (msg) msg.innerHTML = "";
 }
 </script>
 </body>
