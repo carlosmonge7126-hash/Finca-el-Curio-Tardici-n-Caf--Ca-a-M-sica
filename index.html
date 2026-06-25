@@ -195,9 +195,9 @@ table.tb tr:hover{background:#fafaf8;}
   .mc{padding:28px 20px;}
   table.tb{font-size:11px;}
 }
-</style>
-</head>
-<body>
+  </style>
+  </head>
+  <body>
 
 <!-- ════════════ HEADER ════════════ -->
 <header>
@@ -556,7 +556,6 @@ table.tb tr:hover{background:#fafaf8;}
   </div>
 </div>
 
-
 <!-- Login Admin (ahora se accede desde el login normal) -->
 <div class="mo" id="moAdminLogin" style="display:none;">
   <div class="mc">
@@ -775,11 +774,18 @@ table.tb tr:hover{background:#fafaf8;}
 </div>
 
 </div>
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-<script src="https://jsdelivr.net"></script>
-<script src="https://jsdelivr.net"></script>
+  const supabase = createClient(
+    "TU_SUPABASE_URL",
+    "TU_SUPABASE_ANON_KEY"
+  );
+
+  window.supabase = supabase;
+</script>
 <script>
-// ═══════════════════════════════════════════
+  // ═══════════════════════════════════════════
 //  CONSTANTES Y ESTADO
 // ════
 const AE = btoa('carlos8995@live.com'), AP = btoa('Admin123');
@@ -1137,8 +1143,7 @@ function eliminarImagen(key){
   showMsg('msgConfigGuardado', '🗑 Imagen eliminada', 'err', 5000);
   console.log(`Imagen ${key} eliminada.`);
 }
-
-// ═══════════════════════════════════════════
+  // ═══════════════════════════════════════════
 //  CAPACIDAD
 // ═══════════════════════════════════════════
 function capInfo(){ const o=Object.values(DB.plantas).filter(p=>p.clienteEmail).length; const t=CFG.capPlantas||260; return {total:t,ocupadas:o,disponibles:Math.max(0,t-o)}; }
@@ -1434,7 +1439,6 @@ function abrirVerPlanta(cod){
   document.getElementById('contenidoVerPlanta').innerHTML=html;
   abrirModal('moVerPlanta');
 }
-
 // ═══════════════════════════════════════════
 //  PADRINO
 // ═══════════════════════════════════════════
@@ -2268,125 +2272,178 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ═══════════════════════════════════════════
 // ═══════════════════════════════════════════
-//  SUPABASE (CONEXIÓN Y DESCARGA EN VIVO)
+// SUPABASE (VERSIÓN LIMPIA Y ESTABLE)
 // ═══════════════════════════════════════════
-const supabaseUrl = 'https://supabase.co';
-const supabaseKey = 'hmsW5EE7GuaJoNjD'; 
-let _supabase = null;
 
-if (typeof supabase !== 'undefined') {
-  _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const SUPABASE_URL = 'https://supabase.co'; 
+const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI'; // ⚠️ usa SOLO anon key
+
+let supabaseClient = null;
+
+// Inicializar cliente de forma segura
+function initSupabase() {
+  if (typeof supabase !== 'undefined') {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("✅ Supabase conectado");
+  } else {
+    console.warn("⚠️ Supabase no está cargado");
+  }
 }
 
-// Función que descarga las reservas de internet para verlas en tu panel admin
+// Ejecutar al cargar
+initSupabase();
+
+
+// ═══════════════════════════════════════════
+// DESCARGAR RESERVAS DESDE SUPABASE
+// ═══════════════════════════════════════════
 async function descargarReservasDesdeSupabase() {
-  if (!_supabase) return;
+  if (!supabaseClient) return;
+
   try {
-    const { data, error } = await _supabase.from('reservas').select('*').order('fecha', { ascending: true });
+    const { data, error } = await supabaseClient
+      .from('reservas')
+      .select('*')
+      .order('fecha', { ascending: true });
+
     if (error) {
-      console.error("Error al descargar de Supabase:", error.message);
+      console.error("❌ Error Supabase:", error.message);
       return;
     }
-    if (data) {
-      // Mapeamos los datos de internet al formato interno de tu tabla
-      DB.reservas = data.map(r => ({
-        nombre: r.nombre,
-        email: r.email,
-        telefono: r.telefono,
-        fecha: r.fecha,
-        tour: r.tour,
-        horario: r.horario || '',
-        fechaReserva: r.created_at || new Date().toISOString()
-      }));
-      // Guardamos una copia local y refrescamos la vista del administrador
-      guardar();
-      if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
-    }
+
+    if (!data) return;
+
+    DB.reservas = data.map(r => ({
+      nombre: r.nombre,
+      email: r.email,
+      telefono: r.telefono,
+      fecha: r.fecha,
+      tour: r.tour,
+      horario: r.horario || '',
+      fechaReserva: r.created_at || new Date().toISOString()
+    }));
+
+    guardar();
+    renderReservasAdmin?.();
+    console.log("📦 Reservas actualizadas desde Supabase");
+
   } catch (err) {
-    console.error("Error de red con Supabase:", err);
+    console.error("❌ Error de red Supabase:", err);
   }
 }
 
-// Modificamos tu función original para que ejecute la descarga al abrir la sección
-const originalMostrarSecAdmin = mostrarSecAdmin;
-mostrarSecAdmin = function(s) {
-  if (s === 'reservas') {
-    descargarReservasDesdeSupabase();
-  }
-  originalMostrarSecAdmin(s);
-};
 
-// Procesa la reserva del cliente, la sube a internet y actualiza tu backend
+// ═══════════════════════════════════════════
+// SUBIR RESERVA A SUPABASE (CLIENTE)
+// ═══════════════════════════════════════════
+async function enviarReservaSupabase(datos) {
+  if (!supabaseClient) return false;
+
+  try {
+    const { error } = await supabaseClient
+      .from('reservas')
+      .insert([datos]);
+
+    if (error) {
+      console.error("❌ Error insertando:", error.message);
+      return false;
+    }
+
+    return true;
+
+  } catch (err) {
+    console.error("❌ Error conexión:", err);
+    return false;
+  }
+}
+
+
+// ═══════════════════════════════════════════
+// FUNCIÓN PRINCIPAL DE RESERVA (UNIFICADA)
+// ═══════════════════════════════════════════
 async function procesarReserva() {
+
   const btn = document.getElementById('btnReservar');
   const msg = document.getElementById('msgReserva');
-  
-  const n = document.getElementById('rNombre').value.trim();
-  const e = document.getElementById('rEmail').value.trim();
-  const t = document.getElementById('rTel').value.trim();
-  const f = document.getElementById('rFecha').value;
-  const to = document.getElementById('rTour').value;
 
-  if (!n || !e || !f) {
-    if (msg) msg.innerHTML = `<span style="color:#c0392b;">⚠️ ${lang==='es'?'Complete todos los campos necesarios':'Please fill all required fields'}</span>`;
+  const nombre = document.getElementById('rNombre').value.trim();
+  const email = document.getElementById('rEmail').value.trim();
+  const telefono = document.getElementById('rTel').value.trim();
+  const fecha = document.getElementById('rFecha').value;
+  const tour = document.getElementById('rTour').value;
+
+  if (!nombre || !email || !fecha) {
+    if (msg) {
+      msg.innerHTML = "⚠️ Completa los campos obligatorios";
+    }
     return;
   }
 
-  const datosParaEnviar = {
-    nombre: n,
-    email: e,
-    telefono: t,
-    fecha: f,
-    tour: to,
+  const nuevaReserva = {
+    nombre,
+    email,
+    telefono,
+    fecha,
+    tour,
     horario: ''
   };
 
   btn.disabled = true;
-  btn.innerText = lang === 'es' ? "Enviando..." : "Sending...";
+  btn.textContent = "Enviando...";
 
-  let guardadoEnNube = false;
-  if (_supabase) {
-    try {
-      const { error } = await _supabase.from('reservas').insert([datosParaEnviar]);
-      if (error) {
-        console.error("Error insertando en Supabase:", error.message);
-      } else {
-        guardadoEnNube = true;
-      }
-    } catch (err) {
-      console.error("Error crítico de conexión:", err);
-    }
+  // 1. Guardar en nube
+  const ok = await enviarReservaSupabase(nuevaReserva);
+
+  if (ok) {
+    console.log("☁️ Guardado en Supabase");
+  } else {
+    console.warn("⚠️ Solo guardado localmente");
   }
 
-  // Guardar localmente para actualización inmediata de la interfaz
-  if (!DB.reservas) DB.reservas = [];
+  // 2. Guardar local SIEMPRE (fallback)
   DB.reservas.push({
-    nombre: n,
-    email: e,
-    telefono: t,
-    fecha: f,
-    tour: to,
-    horario: '',
+    ...nuevaReserva,
     fechaReserva: new Date().toISOString()
   });
-  
-  guardar(); 
-  
-  if (typeof renderReservasAdmin === 'function') renderReservasAdmin();
-  if (typeof actualizarHorarios === 'function') actualizarHorarios();
-  if (typeof renderCap === 'function') renderCap();
 
-  alert(lang === 'es' ? "¡Reserva enviada con éxito a Finca El Curio!" : "Booking successfully sent to Finca El Curio!");
-  
-  document.getElementById('rNombre').value = "";
-  document.getElementById('rEmail').value = "";
-  document.getElementById('rTel').value = "";
-  document.getElementById('rFecha').value = "";
-  
+  guardar();
+
+  // 3. Actualizar UI
+  renderReservasAdmin?.();
+  actualizarHorarios?.();
+  renderCap?.();
+
+  alert("Reserva enviada correctamente");
+
+  // limpiar form
+  document.getElementById('rNombre').value = '';
+  document.getElementById('rEmail').value = '';
+  document.getElementById('rTel').value = '';
+  document.getElementById('rFecha').value = '';
+
   btn.disabled = false;
-  btn.innerText = lang === 'es' ? "✅ Confirmar Reserva" : "✅ Confirm Booking";
-  if (msg) msg.innerHTML = "";
+  btn.textContent = "Confirmar Reserva";
 }
+
+
+// ═══════════════════════════════════════════
+// ENGANCHE AL ADMIN (SEGURO)
+// ═══════════════════════════════════════════
+function hookMostrarSecAdmin() {
+  const original = mostrarSecAdmin;
+
+  mostrarSecAdmin = function (seccion) {
+
+    if (seccion === 'reservas') {
+      descargarReservasDesdeSupabase();
+    }
+
+    original(seccion);
+  };
+}
+
+// activar hook
+hookMostrarSecAdmin();
 </script>
 </body>
 </html>
