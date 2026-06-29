@@ -1,64 +1,25 @@
-// Agregar al principio de POST
-if (!process.env.DATABASE_URL) {
-  return res.status(500).json({ success: false, error: 'DATABASE_URL no configurada' });
-}
-// serverless/reservar.js
-const { Client } = require('pg');
+import { createClient } from '@supabase/supabase-js';
 
-module.exports = async function handler(req, res) {
-  // Permitir CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
+
+  const { nombre, email, telefono, fecha, tour } = req.body;
+
+  if (!tour || tour.trim() === "") {
+    return res.status(400).json({ exito: false, error: 'Por favor, selecciona un tour válido.' });
   }
-
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
 
   try {
-    await client.connect();
-    
-    if (req.method === 'POST') {
-      const { nombre, email, telefono, fecha, tour, horario } = req.body || {};
-      
-      if (!nombre || !email || !fecha) {
-        await client.end();
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Faltan campos requeridos' 
-        });
-      }
+    const { data, error } = await supabase
+      .from('reservas')
+      .insert([{ nombre_completo: nombre, correo: email, telefono, fecha_deseada: fecha, tour_seleccionado: tour }])
+      .select();
 
-      const result = await client.query(
-        `INSERT INTO visitas (nombre_visitante, email, telefono, fecha_reserva, tour, horario) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [nombre, email, telefono || '', fecha, tour || '', horario || 'Pendiente']
-      );
-      
-      await client.end();
-      return res.status(200).json({ 
-        success: true, 
-        data: result.rows[0],
-        mensaje: '✅ Reserva guardada correctamente'
-      });
-    } else {
-      // GET - Consultar todas las reservas
-      const result = await client.query(
-        'SELECT * FROM visitas ORDER BY fecha_reserva DESC LIMIT 100'
-      );
-      await client.end();
-      return res.status(200).json(result.rows);
-    }
+    if (error) throw error;
+    return res.status(200).json({ exito: true, mensaje: '¡Reserva confirmada con éxito!', reserva: data });
   } catch (error) {
-    console.error('Error en API:', error);
-    await client.end().catch(() => {});
-    return res.status(500).json({ 
-      success: false, 
-      error: '❌ Error de conexión: ' + error.message 
-    });
+    return res.status(500).json({ exito: false, error: error.message });
   }
-};
+}
