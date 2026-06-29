@@ -1,11 +1,14 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/index.js", "use": "@vercel/node" }
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
     {
-      "src": "/(.*\.(jpg|jpeg|png|gif|svg|webp|ico))",
+      "src": "/public/(.*)",
       "dest": "/public/$1"
     },
     {
@@ -14,3 +17,4 @@
     }
   ]
 }
+
