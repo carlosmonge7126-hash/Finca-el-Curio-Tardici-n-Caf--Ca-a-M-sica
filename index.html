@@ -777,9 +777,18 @@ table.tb tr:hover{background:#fafaf8;}
 <script type="module">
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-// 1. Leer las variables de entorno
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Configuración final de conexión para el navegador
+const supabaseUrl = "https://supabase.co";
+const supabaseKey = "sb_publishable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-Z3";
+
+// Inicialización del cliente
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+
+// Inicialización limpia para el navegador
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
 
 // 2. Inicializar el cliente correctamente sin símbolos extras al final
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
