@@ -2258,37 +2258,45 @@ function init(){
   renderImageUploader();
 }
 document.addEventListener('DOMContentLoaded', init);
-
 // ═══════════════════════════════════════════
-// ═══════════════════════════════════════════
-/// ═══════════════════════════════════════════
-// SUPABASE (VERSIÓN LIMPIA Y ESTABLE)
+// SUPABASE (VERSIÓN CORREGIDA Y SEGURA)
 // ═══════════════════════════════════════════
 
-const SUPABASE_URL = 'https://supabase.co'; 
-const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI'; // ⚠️ usa SOLO anon key
+// ⚠️ REEMPLAZA ESTA URL por la de tu proyecto real en el dashboard de Supabase (Settings > API)
+const SUPABASE_URL = 'https://TU_PROYECTO_ID.supabase.co'; 
+const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI'; 
 
 let supabaseClient = null;
 
-// Inicializar cliente de forma segura
 function initSupabase() {
   if (typeof supabase !== 'undefined') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("✅ Supabase conectado");
+    console.log("✅ Supabase conectado de forma exitosa");
+    
+    // 🔥 Descargamos las reservas inmediatamente DESPUÉS de confirmar que el cliente existe
+    descargarReservasDesdeSupabase();
   } else {
-    console.warn("⚠️ Supabase no está cargado");
+    console.warn("⚠️ SDK de Supabase no detectado en el navegador aún");
   }
 }
 
-// Ejecutar al cargar
+// Intentar inicializar al cargar el script
 initSupabase();
+
+// Alternativa de respaldo por si el script externo de Supabase tarda más en cargar en el HTML
+window.addEventListener('DOMContentLoaded', () => {
+  if (!supabaseClient) initSupabase();
+});
 
 
 // ═══════════════════════════════════════════
 // DESCARGAR RESERVAS DESDE SUPABASE
 // ═══════════════════════════════════════════
 async function descargarReservasDesdeSupabase() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) {
+    console.error("❌ No se pueden descargar reservas: Cliente Supabase no inicializado");
+    return;
+  }
 
   try {
     const { data, error } = await supabaseClient
@@ -2297,13 +2305,17 @@ async function descargarReservasDesdeSupabase() {
       .order('fecha', { ascending: true });
 
     if (error) {
-      console.error("❌ Error Supabase:", error.message);
+      console.error("❌ Error de consulta en Supabase:", error.message);
       return;
     }
 
-    if (!data) return;
+    if (!data || data.length === 0) {
+      console.log("📦 No se encontraron reservas en la nube");
+      return;
+    }
 
-    DB.reservas = data.map(r => ({
+    // Mapeamos los datos de la nube con nombres de columnas idénticos a tu DB local
+    const reservasNube = data.map(r => ({
       nombre: r.nombre,
       email: r.email,
       telefono: r.telefono,
@@ -2313,42 +2325,56 @@ async function descargarReservasDesdeSupabase() {
       fechaReserva: r.created_at || new Date().toISOString()
     }));
 
+    // Opción Inteligente: Combinar en lugar de borrar la memoria local existente
+    // Esto evita que las reservas guardadas en LocalStorage en modo offline desaparezcan
+    const mapaExistentes = new Map(DB.reservas.map(r => [`${r.email}-${r.fecha}`, r]));
+    
+    reservasNube.forEach(r => {
+      mapaExistentes.set(`${r.email}-${r.fecha}`, r); 
+    });
+
+    // Guardamos la lista combinada final
+    DB.reservas = Array.from(mapaExistentes.values());
+
+    // Actualizar almacenamiento persistente y renderizar vistas
     guardar();
     renderReservasAdmin?.();
-    console.log("📦 Reservas actualizadas desde Supabase");
+    actualizarHorarios?.(); // Añadido para asegurar consistencia visual
+    console.log("📦 Base de datos unificada con Supabase correctamente");
 
   } catch (err) {
-    console.error("❌ Error de red Supabase:", err);
+    console.error("❌ Error crítico de red con Supabase:", err);
   }
 }
 
+// ═══════════════════════════════════════════
+// SUBIR RESERVA A GOOGLE SHEETS
+// ═══════════════════════════════════════════
+async function enviarReservaGoogleSheets(datos) {
+  // Enlace web de Google Apps Script
+  const googleScriptUrl = "https://script.google.com/macros/s/AKfycbxie9b6goA4wzhUl3iQP4_a9ug03qrUMfRdozSU1xL4lw9vKUa0YuW85x1ET7hrcCca/exec";
 
-// ═══════════════════════════════════════════
-// SUBIR RESERVA A SUPABASE (CLIENTE)
-// ═══════════════════════════════════════════
-async function enviarReservaSupabase(datos) {
   try {
-    // Hace la petición a tu archivo backend en Vercel de forma segura
-    const respuesta = await fetch('/api/reservar', {
+    // Usamos text/plain para enviar el JSON evitando bloqueos estrictos de CORS del navegador
+    const respuesta = await fetch(googleScriptUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(datos)
     });
     
+    // Validamos la respuesta JSON estructurada que configuramos en el doPost de Google
     const resultado = await respuesta.json();
-    return resultado.exito;
+    return resultado.exito; 
   } catch (err) {
-    console.error("❌ Error de conexión al backend:", err);
+    console.error("❌ Error de conexión con Google Sheets:", err);
     return false;
   }
 }
-
 
 // ═══════════════════════════════════════════
 // FUNCIÓN PRINCIPAL DE RESERVA (UNIFICADA)
 // ═══════════════════════════════════════════
 async function procesarReserva() {
-
   const btn = document.getElementById('btnReservar');
   const msg = document.getElementById('msgReserva');
 
@@ -2377,16 +2403,18 @@ async function procesarReserva() {
   btn.disabled = true;
   btn.textContent = "Enviando...";
 
-  // 1. Guardar en nube
-  const ok = await enviarReservaSupabase(nuevaReserva);
+  // 1. Guardar en la nube (Google Sheets)
+  const ok = await enviarReservaGoogleSheets(nuevaReserva);
 
   if (ok) {
-    console.log("☁️ Guardado en Supabase");
+    console.log("☁️ Guardado con éxito en Google Sheets");
+    if (msg) msg.innerHTML = "✅ ¡Reserva registrada con éxito!";
   } else {
-    console.warn("⚠️ Solo guardado localmente");
+    console.warn("⚠️ No se pudo subir a la nube. Guardado solo localmente");
+    if (msg) msg.innerHTML = "⚠️ Guardado en modo local (sin internet)";
   }
 
-  // 2. Guardar local SIEMPRE (fallback)
+  // 2. Guardar local SIEMPRE (fallback offline)
   DB.reservas.push({
     ...nuevaReserva,
     fechaReserva: new Date().toISOString()
@@ -2394,26 +2422,25 @@ async function procesarReserva() {
 
   guardar();
 
-  // 3. Actualizar UI
+  // 3. Actualizar UI interna
   renderReservasAdmin?.();
   actualizarHorarios?.();
   renderCap?.();
 
   alert("Reserva enviada correctamente");
 
-  // limpiar form
+  // Limpiar formulario de entrada
   document.getElementById('rNombre').value = '';
   document.getElementById('rEmail').value = '';
   document.getElementById('rTel').value = '';
   document.getElementById('rFecha').value = '';
-   document.getElementById('rTour').value = '';
+  document.getElementById('rTour').value = '';
 
   btn.disabled = false;
   btn.textContent = "Confirmar Reserva";
 }
 
-
-// ═══════════════════════════════════════════
+  // ═══════════════════════════════════════════
 // ENGANCHE AL ADMIN (SEGURO)
 // ═══════════════════════════════════════════
 function hookMostrarSecAdmin() {
