@@ -778,12 +778,13 @@ table.tb tr:hover{background:#fafaf8;}
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 
-// Configuración final de conexión para el navegador
+// Configuración de datos
 const supabaseUrl = "https://supabase.co";
 const supabaseKey = "sb_publishable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-Z3";
 
-// Inicialización del cliente
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+// QUITA el "const" o "let" antes de supabaseClient para no duplicarla
+supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
 
 
 // Inicialización limpia para el navegador
