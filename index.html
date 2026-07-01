@@ -775,30 +775,25 @@ table.tb tr:hover{background:#fafaf8;}
 
 </div>
 <script type="module">
-  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
-
-// Configuración de datos
-const supabaseUrl = "https://supabase.co";
+// 1. Configuración de tus datos reales y completos
+const supabaseUrl = "https://zfcrhljjfleuzxecykvw.supabase.co";
 const supabaseKey = "sb_publishable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-Z3";
 
-// QUITA el "const" o "let" antes de supabaseClient para no duplicarla
-supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+// 2. Inicialización limpia (usando la función importada directamente)
+let supabaseClient = createClient(supabaseUrl, supabaseKey);
 
 
-
-// Inicialización limpia para el navegador
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-
-// 2. Inicializar el cliente correctamente sin símbolos extras al final
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-  window.supabase = supabase;
+// 3. Compartir en el objeto global por seguridad de tu estructura anterior
+window.supabaseClient = supabaseClient;
 </script>
 <script>
 // ═══════════════════════════════════════════
 //  CONSTANTES Y ESTADO
 // ════
+// Busca esta línea abajo en tu script y cámbiala a:
+let supabaseClient = window.supabaseClient;  
 const AE = btoa('carlos8995@live.com'), AP = btoa('Admin123');
 let lang='es', clienteActual=null, adminOk=false, adminFails=0, adminBlocked=0, sesionTimer=null;
 let filtroClientes='todos', aportesSeleccionados=[], emailParaImagen='', emailParaComentario='', emailParaEmail='';
