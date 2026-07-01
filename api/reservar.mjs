@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+// ✅ SOLUCIÓN MAESTRA: Importamos Supabase desde el CDN oficial para servidores Node.js/Vercel
+import { createClient } from "https://esm.sh";
 
-// Usamos las variables del servidor de Vercel
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -20,23 +20,26 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Inserción limpia usando las columnas exactas creadas en tu base de datos
     const { data, error } = await supabase
       .from('reservas')
       .insert([
         { 
-          nombre_completo: nombre, 
-          correo: email, 
+          nombre: nombre, 
+          email: email, 
           telefono: telefono, 
-          fecha_deseada: fecha, 
-          tour_seleccionado: tour 
+          fecha: fecha, 
+          tour: tour 
         }
       ])
       .select();
 
-    if (error) return res.status(400).json({ exito: false, error: error.message });
+    if (error) {
+      return res.status(400).json({ exito: false, error: error.message });
+    }
     
-    return res.status(200).json({ exito: true, mensaje: '¡Reserva confirmada!', reserva: data });
+    return res.status(200).json({ exito: true, mensaje: '¡Reserva confirmada con éxito!', reserva: data });
   } catch (error) {
-    return res.status(500).json({ exito: false, error: error.message || 'Error interno' });
+    return res.status(500).json({ exito: false, error: error.message || 'Error interno del servidor' });
   }
 }
