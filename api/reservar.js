@@ -1,13 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+// ✅ CAMBIO CRÍTICO: Usamos require en lugar de import para que Vercel no falle
+const { createClient } = require('@supabase/supabase-js');
 
-// Inicialización limpia usando las variables de entorno maestras de Vercel
+// Inicialización limpia usando las variables de entorno nativas de Vercel
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
-  // Aseguramos que la cabecera devuelva un JSON limpio al navegador
+  // Configurar cabeceras de respuesta JSON obligatorias
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method !== 'POST') {
@@ -16,13 +17,13 @@ export default async function handler(req, res) {
 
   const { nombre, email, telefono, fecha, tour } = req.body;
 
-  // Validación rápida en el servidor
+  // Validación básica del servidor
   if (!nombre || !email || !fecha || !tour) {
-    return res.status(400).json({ exito: false, error: 'Faltan campos obligatorios en el servidor.' });
+    return res.status(400).json({ exito: false, error: 'Faltan campos obligatorios en el formulario.' });
   }
 
   try {
-    // 🔥 CORRECCIÓN CLAVE: Las columnas ahora se llaman igual que en tu Supabase
+    // Sincronización directa con los nombres de las columnas que creamos en tu Supabase
     const { data, error } = await supabase
       .from('reservas')
       .insert([
@@ -42,6 +43,6 @@ export default async function handler(req, res) {
     
     return res.status(200).json({ exito: true, mensaje: '¡Reserva confirmada con éxito!', reserva: data });
   } catch (error) {
-    return res.status(500).json({ exito: false, error: error.message || 'Error interno del servidor' });
+    return res.status(500).json({ exito: false, error: error.message || 'Error interno del servidor backend' });
   }
 }
