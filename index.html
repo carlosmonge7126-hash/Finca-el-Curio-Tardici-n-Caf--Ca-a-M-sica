@@ -774,26 +774,7 @@ table.tb tr:hover{background:#fafaf8;}
 </div>
 
 </div>
-<script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
-
-// 1. Configuración de tus datos reales y completos
-const supabaseUrl = "https://zfcrhljjfleuzxecykvw.supabase.co";
-const supabaseKey = "sb_publishable_tyg1SKAaU8eREDbNQ-zuSA_LMWFE-Z3";
-
-// 2. Inicialización limpia (usando la función importada directamente)
-let supabaseClient = createClient(supabaseUrl, supabaseKey);
-
-
-// 3. Compartir en el objeto global por seguridad de tu estructura anterior
-window.supabaseClient = supabaseClient;
-</script>
 <script>
-// ═══════════════════════════════════════════
-//  CONSTANTES Y ESTADO
-// ════
-// Busca esta línea abajo en tu script y cámbiala a:
-let supabaseClient = window.supabaseClient;  
 const AE = btoa('carlos8995@live.com'), AP = btoa('Admin123');
 let lang='es', clienteActual=null, adminOk=false, adminFails=0, adminBlocked=0, sesionTimer=null;
 let filtroClientes='todos', aportesSeleccionados=[], emailParaImagen='', emailParaComentario='', emailParaEmail='';
@@ -2346,22 +2327,18 @@ async function descargarReservasDesdeSupabase() {
 // SUBIR RESERVA A SUPABASE (CLIENTE)
 // ═══════════════════════════════════════════
 async function enviarReservaSupabase(datos) {
-  if (!supabaseClient) return false;
-
   try {
-    const { error } = await supabaseClient
-      .from('reservas')
-      .insert([datos]);
-
-    if (error) {
-      console.error("❌ Error insertando:", error.message);
-      return false;
-    }
-
-    return true;
-
+    // Hace la petición a tu archivo backend en Vercel de forma segura
+    const respuesta = await fetch('/api/reservar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    });
+    
+    const resultado = await respuesta.json();
+    return resultado.exito;
   } catch (err) {
-    console.error("❌ Error conexión:", err);
+    console.error("❌ Error de conexión al backend:", err);
     return false;
   }
 }
